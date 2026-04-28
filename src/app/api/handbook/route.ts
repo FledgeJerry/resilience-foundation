@@ -17,7 +17,11 @@ export async function GET(req: Request) {
     const coopId = searchParams.get("coopId");
     if (!coopId) return NextResponse.json({ error: "coopId required" }, { status: 400 });
 
-    const membership = await getMembership(session.user.id, coopId);
+    const asUserId = searchParams.get("userId");
+    if (asUserId && session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const membership = asUserId ? true : await getMembership(session.user.id, coopId);
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const entries = await prisma.handbookEntry.findMany({

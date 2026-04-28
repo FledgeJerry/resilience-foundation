@@ -12,6 +12,7 @@ export default function Nav() {
     <>
       <li><Link href="/" onClick={() => setOpen(false)}>Home</Link></li>
       <li><Link href="/about" onClick={() => setOpen(false)}>About</Link></li>
+      <li><Link href="/directory" onClick={() => setOpen(false)}>Directory</Link></li>
       {session && (
         <>
           <li><Link href="/handbook" onClick={() => setOpen(false)}>My Handbook</Link></li>

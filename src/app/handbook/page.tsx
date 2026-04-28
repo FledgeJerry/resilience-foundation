@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { HANDBOOK } from "@/lib/handbook-content";
 import type { HandbookField } from "@/lib/handbook-content";
 
-type Coop = { id: string; name: string; role: string };
+type Coop = { id: string; name: string; role: string; isPublic?: boolean; website?: string; contactEmail?: string; phone?: string };
 type Member = { id: string; role: string; user: { id: string; name: string | null; email: string } };
 type Entries = Record<string, string>;
 type SaveState = Record<string, "saving" | "saved" | "error">;
 
-export default function HandbookPage() {
+function HandbookPageInner() {
   const { status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewAsUserId = searchParams.get("userId");
+  const viewAsName = searchParams.get("name");
+  const isAdminView = !!viewAsUserId;
+
   const [coops, setCoops] = useState<Coop[]>([]);
   const [coopId, setCoopId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -32,33 +38,59 @@ export default function HandbookPage() {
   const [inviteOfferEmail, setInviteOfferEmail] = useState<string | null>(null);
   const [inviteSent, setInviteSent] = useState(false);
 
+  // Directory listing state
+  const [showDirectory, setShowDirectory] = useState(false);
+  const [dirPublic, setDirPublic] = useState(false);
+  const [dirWebsite, setDirWebsite] = useState("");
+  const [dirEmail, setDirEmail] = useState("");
+  const [dirPhone, setDirPhone] = useState("");
+  const [dirSaving, setDirSaving] = useState(false);
+  const [dirSaved, setDirSaved] = useState(false);
+
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return; }
     if (status !== "authenticated") return;
-    fetch("/api/coops")
+    const url = isAdminView ? `/api/coops?userId=${viewAsUserId}` : "/api/coops";
+    fetch(url)
       .then((r) => r.json())
       .then((data: Coop[]) => {
         setCoops(data);
         if (data.length === 1) setCoopId(data[0].id);
         setLoading(false);
       });
-  }, [status, router]);
+  }, [status, router, isAdminView, viewAsUserId]);
 
   useEffect(() => {
     if (!coopId) return;
     setEntries({});
     setMembers([]);
-    fetch(`/api/handbook?coopId=${coopId}`)
+    const handbookUrl = isAdminView
+      ? `/api/handbook?coopId=${coopId}&userId=${viewAsUserId}`
+      : `/api/handbook?coopId=${coopId}`;
+    fetch(handbookUrl)
       .then((r) => r.json())
       .then((data: { fieldId: string; value: string }[]) => {
         const map: Entries = {};
         for (const e of data) map[e.fieldId] = e.value;
         setEntries(map);
       });
-    fetch(`/api/coops/${coopId}/members`)
-      .then((r) => r.json())
-      .then((data: Member[]) => setMembers(data));
-  }, [coopId]);
+    if (!isAdminView) {
+      fetch(`/api/coops/${coopId}/members`)
+        .then((r) => r.json())
+        .then((data: Member[]) => setMembers(data));
+    }
+
+    // Load current directory settings for this coop
+    if (!isAdminView) {
+      const coopData = coops.find((c) => c.id === coopId);
+      if (coopData) {
+        setDirPublic(coopData.isPublic ?? false);
+        setDirWebsite(coopData.website ?? "");
+        setDirEmail(coopData.contactEmail ?? "");
+        setDirPhone(coopData.phone ?? "");
+      }
+    }
+  }, [coopId, isAdminView, viewAsUserId, coops]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -133,7 +165,7 @@ export default function HandbookPage() {
   }
 
   const save = useCallback(async (fieldId: string, value: string) => {
-    if (!coopId) return;
+    if (!coopId || isAdminView) return;
     setSaveState((s) => ({ ...s, [fieldId]: "saving" }));
     try {
       await fetch("/api/handbook", {
@@ -146,20 +178,40 @@ export default function HandbookPage() {
     } catch {
       setSaveState((s) => ({ ...s, [fieldId]: "error" }));
     }
-  }, [coopId]);
+  }, [coopId, isAdminView]);
+
+  async function saveDirectory() {
+    if (!coopId) return;
+    setDirSaving(true);
+    setDirSaved(false);
+    await fetch("/api/coops", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coopId, isPublic: dirPublic, website: dirWebsite, contactEmail: dirEmail, phone: dirPhone }),
+    });
+    setDirSaving(false);
+    setDirSaved(true);
+    setTimeout(() => setDirSaved(false), 2500);
+    setCoops((prev) => prev.map((c) => c.id === coopId
+      ? { ...c, isPublic: dirPublic, website: dirWebsite, contactEmail: dirEmail, phone: dirPhone }
+      : c
+    ));
+  }
 
   function handleChange(fieldId: string, value: string) {
+    if (isAdminView) return;
     setEntries((e) => ({ ...e, [fieldId]: value }));
   }
 
   function handleBlur(fieldId: string) {
+    if (isAdminView) return;
     save(fieldId, entries[fieldId] ?? "");
   }
 
   if (status === "loading" || loading) return <p className="text-muted">Loading…</p>;
 
-  // Create form — no coops yet, or user clicked "+ New"
-  if (coops.length === 0 || showCreate) {
+  // Create form — no coops yet, or user clicked "+ New" (not in admin view)
+  if (!isAdminView && (coops.length === 0 || showCreate)) {
     return (
       <div style={{ maxWidth: "480px" }}>
         <span className="eyebrow">Get Started</span>
@@ -192,11 +244,23 @@ export default function HandbookPage() {
     );
   }
 
+  if (isAdminView && coops.length === 0) {
+    return (
+      <div>
+        <Link href="/admin" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>← Back to users</Link>
+        <p style={{ marginTop: "1rem", color: "var(--color-text-muted)" }}>This user has no co-ops yet.</p>
+      </div>
+    );
+  }
+
   // Picker — multiple coops, none selected
   if (coops.length > 1 && !coopId) {
     return (
       <div style={{ maxWidth: "480px" }}>
-        <span className="eyebrow">Your Co-ops</span>
+        {isAdminView && (
+          <Link href="/admin" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", display: "block", marginBottom: "1rem" }}>← Back to users</Link>
+        )}
+        <span className="eyebrow">{isAdminView ? `${viewAsName ?? "User"}'s Co-ops` : "Your Co-ops"}</span>
         <h1 style={{ marginBottom: "1.5rem" }}>Which handbook?</h1>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           {coops.map((c) => (
@@ -217,13 +281,15 @@ export default function HandbookPage() {
               <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", margin: 0, textTransform: "lowercase" }}>{c.role}</p>
             </button>
           ))}
-          <button
-            className="btn btn--secondary"
-            onClick={() => setShowCreate(true)}
-            style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
-          >
-            + New Co-op
-          </button>
+          {!isAdminView && (
+            <button
+              className="btn btn--secondary"
+              onClick={() => setShowCreate(true)}
+              style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
+            >
+              + New Co-op
+            </button>
+          )}
         </div>
       </div>
     );
@@ -239,6 +305,16 @@ export default function HandbookPage() {
 
       {/* Sidebar */}
       <aside style={{ width: "220px", flexShrink: 0, position: "sticky", top: "80px" }}>
+        {isAdminView && (
+          <div style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)" }}>
+            <Link href="/admin" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>← Back to users</Link>
+            <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.75rem", background: "rgba(232,200,74,0.08)", border: "1px solid rgba(232,200,74,0.25)", borderRadius: "6px" }}>
+              <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--color-dome-gold)", margin: "0 0 0.1rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Admin view</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)", margin: 0 }}>{viewAsName ?? "User"} · read only</p>
+            </div>
+          </div>
+        )}
+
         <div style={{ marginBottom: "1.25rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)" }}>
           <p style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>
             Co-op
@@ -246,30 +322,32 @@ export default function HandbookPage() {
           <p style={{ fontWeight: 600, fontSize: "0.85rem", margin: "0 0 0.25rem", color: "var(--color-limestone)" }}>
             {activeCoop?.name}
           </p>
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            {coops.length > 1 && (
+          {!isAdminView && (
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              {coops.length > 1 && (
+                <button
+                  onClick={() => setCoopId(null)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.75rem", padding: 0, fontFamily: "var(--font-sans)" }}
+                >
+                  Switch
+                </button>
+              )}
               <button
-                onClick={() => setCoopId(null)}
+                onClick={() => setShowCreate(true)}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.75rem", padding: 0, fontFamily: "var(--font-sans)" }}
               >
-                Switch
+                + New
               </button>
-            )}
-            <button
-              onClick={() => setShowCreate(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.75rem", padding: 0, fontFamily: "var(--font-sans)" }}
-            >
-              + New
-            </button>
-            <button
-              onClick={() => setShowTeam((v) => !v)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.75rem", padding: 0, fontFamily: "var(--font-sans)" }}
-            >
-              Team
-            </button>
-          </div>
+              <button
+                onClick={() => setShowTeam((v) => !v)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.75rem", padding: 0, fontFamily: "var(--font-sans)" }}
+              >
+                Team
+              </button>
+            </div>
+          )}
 
-          {showTeam && (
+          {!isAdminView && showTeam && (
             <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {members.map((m) => (
                 <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -324,6 +402,57 @@ export default function HandbookPage() {
             </div>
           )}
         </div>
+
+        {!isAdminView && activeCoop?.role === "OWNER" && (
+          <div style={{ marginBottom: "1.25rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)" }}>
+            <button
+              onClick={() => setShowDirectory((v) => !v)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.75rem", padding: 0, fontFamily: "var(--font-sans)" }}
+            >
+              {showDirectory ? "▾" : "▸"} Directory listing
+            </button>
+            {showDirectory && (
+              <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.78rem", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={dirPublic}
+                    onChange={(e) => setDirPublic(e.target.checked)}
+                    style={{ width: "auto", margin: 0 }}
+                  />
+                  List in public directory
+                </label>
+                <input
+                  type="url"
+                  value={dirWebsite}
+                  onChange={(e) => setDirWebsite(e.target.value)}
+                  placeholder="Website"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem" }}
+                />
+                <input
+                  type="email"
+                  value={dirEmail}
+                  onChange={(e) => setDirEmail(e.target.value)}
+                  placeholder="Contact email"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem" }}
+                />
+                <input
+                  type="tel"
+                  value={dirPhone}
+                  onChange={(e) => setDirPhone(e.target.value)}
+                  placeholder="Phone"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem" }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <button onClick={saveDirectory} disabled={dirSaving} className="btn btn--primary btn--sm" style={{ fontSize: "0.7rem", padding: "0.3rem 0.6rem" }}>
+                    {dirSaving ? "Saving…" : "Save"}
+                  </button>
+                  {dirSaved && <span style={{ fontSize: "0.72rem", color: "var(--color-teal-accent)" }}>Saved</span>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <p style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.75rem" }}>
           Sections
@@ -404,6 +533,7 @@ export default function HandbookPage() {
                     <select
                       id={field.id}
                       value={selectVal}
+                      disabled={isAdminView}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === "Other") {
@@ -423,6 +553,7 @@ export default function HandbookPage() {
                       <input
                         type="text"
                         value={otherText}
+                        readOnly={isAdminView}
                         onChange={(e) => handleChange(field.id, e.target.value ? `Other: ${e.target.value}` : "Other")}
                         onBlur={() => handleBlur(field.id)}
                         placeholder="Describe your legal structure…"
@@ -434,9 +565,10 @@ export default function HandbookPage() {
                 <textarea
                   id={field.id}
                   value={entries[field.id] ?? ""}
+                  readOnly={isAdminView}
                   onChange={(e) => handleChange(field.id, e.target.value)}
                   onBlur={() => handleBlur(field.id)}
-                  placeholder="Your answer…"
+                  placeholder={isAdminView ? "—" : "Your answer…"}
                   rows={4}
                 />
               ) : (
@@ -444,32 +576,35 @@ export default function HandbookPage() {
                   id={field.id}
                   type="text"
                   value={entries[field.id] ?? ""}
+                  readOnly={isAdminView}
                   onChange={(e) => handleChange(field.id, e.target.value)}
                   onBlur={() => handleBlur(field.id)}
-                  placeholder="Your answer…"
+                  placeholder={isAdminView ? "—" : "Your answer…"}
                 />
               )}
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.5rem" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowExample((s) => ({ ...s, [field.id]: !s[field.id] }))}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.8rem", fontFamily: "var(--font-sans)", padding: 0 }}
-                >
-                  {showExample[field.id] ? "Hide example" : "Show example"}
-                </button>
-                {saveState[field.id] === "saving" && (
-                  <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Saving…</span>
-                )}
-                {saveState[field.id] === "saved" && (
-                  <span style={{ fontSize: "0.75rem", color: "var(--color-teal-accent)" }}>Saved</span>
-                )}
-                {saveState[field.id] === "error" && (
-                  <span style={{ fontSize: "0.75rem", color: "#e07070" }}>Error saving</span>
-                )}
-              </div>
+              {!isAdminView && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.5rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowExample((s) => ({ ...s, [field.id]: !s[field.id] }))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.8rem", fontFamily: "var(--font-sans)", padding: 0 }}
+                  >
+                    {showExample[field.id] ? "Hide example" : "Show example"}
+                  </button>
+                  {saveState[field.id] === "saving" && (
+                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Saving…</span>
+                  )}
+                  {saveState[field.id] === "saved" && (
+                    <span style={{ fontSize: "0.75rem", color: "var(--color-teal-accent)" }}>Saved</span>
+                  )}
+                  {saveState[field.id] === "error" && (
+                    <span style={{ fontSize: "0.75rem", color: "#e07070" }}>Error saving</span>
+                  )}
+                </div>
+              )}
 
-              {showExample[field.id] && (
+              {!isAdminView && showExample[field.id] && (
                 <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "var(--color-surface-raised)", borderRadius: "6px", borderLeft: "3px solid var(--color-river-blue)" }}>
                   <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-river-blue)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     Neighbors Care Cooperative example
@@ -482,5 +617,13 @@ export default function HandbookPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HandbookPage() {
+  return (
+    <Suspense fallback={<p className="text-muted">Loading…</p>}>
+      <HandbookPageInner />
+    </Suspense>
   );
 }

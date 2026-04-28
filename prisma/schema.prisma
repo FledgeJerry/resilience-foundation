@@ -53,6 +53,11 @@ model Coop {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  isPublic     Boolean @default(false)
+  website      String?
+  contactEmail String?
+  phone        String?
+
   members         CoopMember[]
   handbookEntries HandbookEntry[]
 }
