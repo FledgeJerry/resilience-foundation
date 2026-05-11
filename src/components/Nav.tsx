@@ -45,7 +45,7 @@ export default function Nav() {
   return (
     <nav className="site-nav">
       <Link href="/" className="site-nav__logo">
-        gaia<span>.</span>solutions
+        Crash Out<span>:</span> A Resiliency Hub
       </Link>
 
       <ul className="site-nav__links">{links}</ul>
