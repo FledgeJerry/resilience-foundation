@@ -220,7 +220,7 @@ export default function ProfilePage() {
               style={{ width: "auto", accentColor: "var(--color-dome-gold)" }}
             />
             <span style={{ fontSize: "0.9rem", color: "var(--color-text-secondary)" }}>
-              Send me updates about gaia.solutions and co-op resources
+              Send me updates about resilience.foundation and co-op resources
             </span>
           </label>
         </div>

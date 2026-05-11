@@ -53,7 +53,7 @@ export default function LoginPage() {
   return (
     <div style={{ maxWidth: "420px", margin: "3rem auto" }}>
       <h1 style={{ marginBottom: "0.25rem" }}>Sign in</h1>
-      <p style={{ marginBottom: "2rem" }}>Welcome back to gaia.solutions</p>
+      <p style={{ marginBottom: "2rem" }}>Welcome back to resilience.foundation</p>
 
       <form onSubmit={handleSubmit} className="card">
         <div className="form-group">

@@ -17,7 +17,7 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: "gaia.solutions — Build What You Own",
+  title: "resilience.foundation — Build What You Own",
   description: "A guided platform for building worker-owned cooperatives.",
 };
 
@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
           <footer className="site-footer">
             <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", margin: 0 }}>
-              gaia.solutions — a project of{" "}
+              resilience.foundation — a project of{" "}
               <a href="https://thefledge.com" target="_blank" rel="noopener noreferrer">The Fledge</a>
               {" "}· 1300 Eureka Street, Lansing, MI
             </p>

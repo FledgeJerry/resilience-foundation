@@ -17,7 +17,7 @@ export default function AboutPage() {
         <span className="eyebrow">But You Don&apos;t Have to Be From Lansing</span>
         <h2 style={{ marginBottom: "1rem" }}>This Tool Is for Anyone Ready to Build</h2>
         <p style={{ marginBottom: "1rem" }}>
-          We built gaia.solutions to be useful anywhere a group of workers is tired of waiting for someone else to fix things. Whether you&apos;re in Lansing or Los Angeles, Detroit or Denver — if you want to build something your community actually owns, this handbook is for you.
+          We built resilience.foundation to be useful anywhere a group of workers is tired of waiting for someone else to fix things. Whether you&apos;re in Lansing or Los Angeles, Detroit or Denver — if you want to build something your community actually owns, this handbook is for you.
         </p>
         <p>
           We just happen to be doing it loudest in Michigan.
@@ -34,7 +34,7 @@ export default function AboutPage() {
           We don&apos;t accept that. Not because it&apos;s idealistic — but because it&apos;s just bad math. A local business that pays living wages, governs itself democratically, and reinvests its surplus in the community creates more durable value than one that doesn&apos;t. The co-op model isn&apos;t charity. It&apos;s a better way to run a business.
         </p>
         <p>
-          gaia.solutions exists to make that model accessible — not just to people with MBAs and startup capital, but to workers who have been told the economic system isn&apos;t for them. It is. You just have to build it yourself.
+          resilience.foundation exists to make that model accessible — not just to people with MBAs and startup capital, but to workers who have been told the economic system isn&apos;t for them. It is. You just have to build it yourself.
         </p>
       </section>
 
@@ -42,7 +42,7 @@ export default function AboutPage() {
         <span className="eyebrow">Rooted in Lansing</span>
         <h2 style={{ marginBottom: "1rem" }}>A Project of The Fledge</h2>
         <p style={{ marginBottom: "1rem" }}>
-          gaia.solutions is built and maintained by <a href="https://thefledge.com" target="_blank" rel="noopener noreferrer">The Fledge</a> — a social enterprise and community space at 1300 Eureka Street in Lansing, MI. The Fledge has been supporting entrepreneurs, artists, and community builders since 2013. Worker ownership is the next chapter.
+          resilience.foundation is built and maintained by <a href="https://thefledge.com" target="_blank" rel="noopener noreferrer">The Fledge</a> — a social enterprise and community space at 1300 Eureka Street in Lansing, MI. The Fledge has been supporting entrepreneurs, artists, and community builders since 2013. Worker ownership is the next chapter.
         </p>
         <div className="card--accent" style={{ marginTop: "1.5rem" }}>
           <p style={{ margin: 0, fontStyle: "italic", color: "var(--color-limestone)" }}>
@@ -55,7 +55,7 @@ export default function AboutPage() {
         <span className="eyebrow">Infrastructure That Means It</span>
         <h2 style={{ marginBottom: "1rem" }}>This Platform Runs on a Computer in Our Building</h2>
         <p style={{ marginBottom: "1rem" }}>
-          gaia.solutions doesn&apos;t run on a server farm owned by Amazon or Google. It runs on a Raspberry Pi sitting inside The Fledge at 1300 Eureka Street in Lansing, MI. Your data stays in our building, on hardware we own.
+          resilience.foundation doesn&apos;t run on a server farm owned by Amazon or Google. It runs on a Raspberry Pi sitting inside The Fledge at 1300 Eureka Street in Lansing, MI. Your data stays in our building, on hardware we own.
         </p>
         <p>
           That&apos;s not a quirk. It&apos;s a statement. If we&apos;re going to ask you to build something you actually own, we should practice what we preach.
