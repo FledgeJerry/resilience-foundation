@@ -12,6 +12,7 @@ type Deal = {
   renovationCost: string;
   postRenoValue: string;
   shareCount: string;
+  treasuryReservePct: string;
 };
 
 type Treasury = {
@@ -29,12 +30,16 @@ function calcDeal(d: Deal) {
   const reno = parseFloat(d.renovationCost) || 0;
   const postReno = parseFloat(d.postRenoValue) || 0;
   const shareCount = Math.max(1, parseInt(d.shareCount) || 1000);
+  const reservePct = Math.min(99, Math.max(0, parseFloat(d.treasuryReservePct) || 10));
   const totalRaise = purchase + reno;
-  const issuePrice = shareCount > 0 ? totalRaise / shareCount : 0;
+  const treasuryShares = Math.round(shareCount * (reservePct / 100));
+  const publicShares = shareCount - treasuryShares;
+  const issuePrice = publicShares > 0 ? totalRaise / publicShares : 0;
   const equityBuffer = postReno - totalRaise;
   const equityPct = totalRaise > 0 ? ((postReno - totalRaise) / totalRaise) * 100 : 0;
   const perShareValueDay1 = shareCount > 0 ? postReno / shareCount : 0;
-  return { purchase, reno, postReno, shareCount, issuePrice, totalRaise, equityBuffer, equityPct, perShareValueDay1 };
+  const treasuryStakeValue = treasuryShares * perShareValueDay1;
+  return { purchase, reno, postReno, shareCount, reservePct, treasuryShares, publicShares, issuePrice, totalRaise, equityBuffer, equityPct, perShareValueDay1, treasuryStakeValue };
 }
 
 function calcTreasury(t: Treasury, sharesNeeded: number) {
@@ -197,7 +202,7 @@ function DealPage({ deal, setDeal, onNext, onBack }: {
   deal: Deal; setDeal: (d: Deal) => void; onNext: () => void; onBack: () => void;
 }) {
   const set = (k: keyof Deal, v: string) => setDeal({ ...deal, [k]: v });
-  const { totalRaise, shareCount, issuePrice, equityBuffer, equityPct, perShareValueDay1 } = calcDeal(deal);
+  const { totalRaise, shareCount, publicShares, treasuryShares, issuePrice, equityBuffer, equityPct, perShareValueDay1, treasuryStakeValue } = calcDeal(deal);
   const canContinue = deal.purchasePrice && deal.renovationCost && deal.postRenoValue;
   const hasNumbers = totalRaise > 0 && parseFloat(deal.postRenoValue) > 0;
 
@@ -229,11 +234,17 @@ function DealPage({ deal, setDeal, onNext, onBack }: {
           </p>
         </div>
         <div>
-          <label>Number of shares to issue — default 1,000</label>
+          <label>Total shares to issue — default 1,000</label>
           <input type="number" min="1" placeholder="1000" style={inputStyle} value={deal.shareCount} onChange={e => set("shareCount", e.target.value)} />
           <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: "0.35rem" }}>
-            Each share is priced at <strong style={{ color: "var(--color-limestone)" }}>total raise ÷ shares</strong>.
-            After renovation, each share is worth <strong style={{ color: "var(--color-limestone)" }}>post-reno value ÷ shares</strong>.
+            Post-renovation, each share = post-reno value ÷ total shares.
+          </p>
+        </div>
+        <div>
+          <label>Treasury reserve (% of shares) — default 10%</label>
+          <input type="number" min="0" max="99" placeholder="10" style={inputStyle} value={deal.treasuryReservePct} onChange={e => set("treasuryReservePct", e.target.value)} />
+          <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: "0.35rem" }}>
+            Shares held back by the treasury — not sold at launch. Reserved for future sales: new members, liquidity for exits, or future fundraising.
           </p>
         </div>
       </div>
@@ -244,20 +255,40 @@ function DealPage({ deal, setDeal, onNext, onBack }: {
           <p style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.75rem" }}>
             Live preview
           </p>
+          {/* Share split visual */}
+          <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "1rem 1.25rem", marginBottom: "0.75rem" }}>
+            <p style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.75rem" }}>
+              Share structure ({shareCount.toLocaleString()} total)
+            </p>
+            <div style={{ display: "flex", height: "24px", borderRadius: "4px", overflow: "hidden", marginBottom: "0.5rem" }}>
+              <div style={{ flex: publicShares, background: "var(--color-dome-gold)", transition: "flex 0.3s" }} />
+              <div style={{ flex: treasuryShares, background: "var(--color-river-blue)", transition: "flex 0.3s" }} />
+            </div>
+            <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.78rem" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span style={{ display: "inline-block", width: "10px", height: "10px", background: "var(--color-dome-gold)", borderRadius: "2px" }} />
+                <span style={{ color: "var(--color-text-secondary)" }}>Public: <strong style={{ color: "var(--color-limestone)" }}>{publicShares.toLocaleString()} shares</strong></span>
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span style={{ display: "inline-block", width: "10px", height: "10px", background: "var(--color-river-blue)", borderRadius: "2px" }} />
+                <span style={{ color: "var(--color-text-secondary)" }}>Treasury: <strong style={{ color: "var(--color-limestone)" }}>{treasuryShares.toLocaleString()} shares</strong></span>
+              </span>
+            </div>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.75rem" }}>
-            <StatBox label="Total raise needed" value={`$${totalRaise.toLocaleString()}`} />
-            <StatBox label="Shares to issue" value={shareCount.toLocaleString()} sub={`$${issuePrice.toFixed(2)} each at launch`} />
+            <StatBox label="Total raise needed" value={`$${totalRaise.toLocaleString()}`} sub={`from ${publicShares.toLocaleString()} public shares`} />
+            <StatBox label="Issue price per share" value={`$${issuePrice.toFixed(2)}`} sub="public shares only" />
             <StatBox
               label="Per-share value day 1"
               value={`$${perShareValueDay1.toFixed(2)}`}
-              sub={`paid $${issuePrice.toFixed(2)} — gain $${(perShareValueDay1 - issuePrice).toFixed(2)}`}
+              sub={`gain $${(perShareValueDay1 - issuePrice).toFixed(2)} on day 1`}
               accent={perShareValueDay1 > issuePrice}
             />
             <StatBox
-              label="Total equity buffer"
-              value={equityBuffer >= 0 ? `$${equityBuffer.toLocaleString()}` : `-$${Math.abs(equityBuffer).toLocaleString()}`}
-              sub={`${equityPct >= 0 ? "+" : ""}${equityPct.toFixed(0)}% above cost`}
-              accent={equityBuffer > 0}
+              label="Treasury stake (post-reno)"
+              value={`$${treasuryStakeValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+              sub={`${treasuryShares} shares × $${perShareValueDay1.toFixed(2)}`}
+              accent
             />
           </div>
           {equityBuffer <= 0 && (
@@ -385,10 +416,10 @@ function ResultsPage({ deal, treasury, onRestart }: { deal: Deal; treasury: Trea
       <div>
         <h3 style={{ fontSize: "1rem", color: "var(--color-limestone)", marginBottom: "1rem" }}>The deal</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.75rem" }}>
-          <StatBox label="Total raise" value={`$${d.totalRaise.toLocaleString()}`} />
+          <StatBox label="Total raise" value={`$${d.totalRaise.toLocaleString()}`} sub={`${d.publicShares.toLocaleString()} public shares`} />
           <StatBox label="Post-reno value" value={`$${d.postReno.toLocaleString()}`} />
-          <StatBox label="Instant equity" value={`$${d.equityBuffer.toLocaleString()}`} sub={`+${d.equityPct.toFixed(0)}% above cost`} accent={d.equityBuffer > 0} />
-          <StatBox label="Shares issued" value={d.shareCount.toLocaleString()} sub={`$${d.issuePrice.toFixed(2)} issue price`} />
+          <StatBox label="Instant equity buffer" value={`$${d.equityBuffer.toLocaleString()}`} sub={`+${d.equityPct.toFixed(0)}% above cost`} accent={d.equityBuffer > 0} />
+          <StatBox label="Treasury reserve" value={`${d.treasuryShares.toLocaleString()} shares`} sub={`$${d.treasuryStakeValue.toLocaleString(undefined, { maximumFractionDigits: 0 })} post-reno value`} accent />
         </div>
       </div>
 
@@ -397,7 +428,7 @@ function ResultsPage({ deal, treasury, onRestart }: { deal: Deal; treasury: Trea
         <h3 style={{ fontSize: "1rem", color: "var(--color-limestone)", marginBottom: "1.25rem" }}>What does one share mean?</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>Issue price (what you pay)</span>
+            <span style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>Issue price (what you pay at launch)</span>
             <strong style={{ color: "var(--color-limestone)" }}>${d.issuePrice.toFixed(2)}</strong>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -458,13 +489,13 @@ function ResultsPage({ deal, treasury, onRestart }: { deal: Deal; treasury: Trea
 
 export default function HousingPage() {
   const [step, setStep] = useState<Step>("intro");
-  const [deal, setDeal] = useState<Deal>({ purchasePrice: "", renovationCost: "", postRenoValue: "", shareCount: "1000" });
+  const [deal, setDeal] = useState<Deal>({ purchasePrice: "", renovationCost: "", postRenoValue: "", shareCount: "1000", treasuryReservePct: "10" });
   const [treasury, setTreasury] = useState<Treasury>({ monthlyRent: "", propertyTax: "", insurance: "", maintenanceReserve: "", rainyDayPct: "10" });
 
   const stepIndex = { intro: 0, deal: 1, treasury: 2, results: 3 }[step];
 
   function restart() {
-    setDeal({ purchasePrice: "", renovationCost: "", postRenoValue: "", shareCount: "1000" });
+    setDeal({ purchasePrice: "", renovationCost: "", postRenoValue: "", shareCount: "1000", treasuryReservePct: "10" });
     setTreasury({ monthlyRent: "", propertyTax: "", insurance: "", maintenanceReserve: "", rainyDayPct: "10" });
     setStep("intro");
   }
