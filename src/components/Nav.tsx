@@ -11,6 +11,7 @@ export default function Nav() {
   const links = (
     <>
       <li><Link href="/" onClick={() => setOpen(false)}>Home</Link></li>
+      <li><Link href="/co-op" onClick={() => setOpen(false)}>Co-op Builder</Link></li>
       <li><Link href="/housing" onClick={() => setOpen(false)}>Housing</Link></li>
       <li><Link href="/about" onClick={() => setOpen(false)}>About</Link></li>
       <li><Link href="/directory" onClick={() => setOpen(false)}>Directory</Link></li>

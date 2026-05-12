@@ -1,114 +1,245 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import RoutingQuiz from "@/components/RoutingQuiz";
 
-export default async function Home() {
-  const session = await auth();
-  const handbookHref = session ? "/handbook" : "/register";
-  const handbookLabel = session ? "My Handbook" : "Start Your Handbook";
+const NODES = [
+  {
+    num: 1,
+    abbr: "COOP",
+    name: "Worker Co-op Builder",
+    desc: "Co-op legal templates, handbook, and democratic governance. Build the structure that makes your work yours.",
+    href: "/co-op",
+    live: true,
+    highlight: false,
+  },
+  {
+    num: 2,
+    abbr: "HSG",
+    name: "Housing Roadmap",
+    desc: "Sunshine House model, rent-to-own, and acquisition guide. Stop paying someone else's mortgage.",
+    href: "/housing",
+    live: true,
+    highlight: true,
+  },
+  {
+    num: 3,
+    abbr: "MAP",
+    name: "Basic Needs Map",
+    desc: "Free Stands, food, healthcare, and live resource maps. Know what's available right now.",
+    href: "/needs",
+    live: false,
+    highlight: false,
+  },
+  {
+    num: 4,
+    abbr: "JRNY",
+    name: "Entrepreneurial Journey",
+    desc: "Eight stages from idea to co-op. Tools, the Fledge pathway, and peer support at every step.",
+    href: "/journey",
+    live: false,
+    highlight: true,
+  },
+  {
+    num: 5,
+    abbr: "COPY",
+    name: "Replicate It",
+    desc: "Open-source playbook for building Crash Out in your city. Everything we've built, yours to use.",
+    href: "/replicate",
+    live: false,
+    highlight: false,
+  },
+  {
+    num: 6,
+    abbr: "DATA",
+    name: "Research + Benchmarks",
+    desc: "ALICE data, co-op outcomes, and living wage index. Know your ground before you build.",
+    href: "/research",
+    live: false,
+    highlight: false,
+  },
+  {
+    num: 7,
+    abbr: "GOV",
+    name: "Governance Library",
+    desc: "Bylaws, ICA principles, voting models, and AI governance. Govern democratically from day one.",
+    href: "/governance",
+    live: false,
+    highlight: false,
+  },
+  {
+    num: 8,
+    abbr: "PLSE",
+    name: "Crash Out Pulse",
+    desc: "Daily podcast feed, episodes, and guests. Hear from people already building.",
+    href: "/pulse",
+    live: false,
+    highlight: false,
+  },
+];
 
+export default function Home() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "5rem" }}>
 
-      {/* Hero */}
-      <section style={{ textAlign: "center", padding: "3rem 0 1rem" }}>
-        <span className="eyebrow">Worker-Owned Co-op Handbook</span>
-        <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", marginBottom: "1.25rem" }}>
-          Build What We Need —<br />Together.
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section style={{ padding: "4rem 0 2rem", textAlign: "center" }}>
+        <span className="eyebrow">Crash Out: A Resiliency Hub</span>
+        <h1 style={{ fontSize: "clamp(2.4rem, 6vw, 3.75rem)", lineHeight: 1.15, marginBottom: "1.25rem" }}>
+          Build what<br />takes care of us.
         </h1>
-        <p style={{ fontSize: "1.1rem", maxWidth: "560px", margin: "0 auto 2rem", color: "var(--color-text-secondary)" }}>
-          A guided platform for founding groups ready to build a worker-owned cooperative — from first idea to full business plan.
+        <p style={{
+          fontSize: "clamp(1rem, 2vw, 1.2rem)",
+          maxWidth: "580px",
+          margin: "0 auto 2.25rem",
+          color: "var(--color-text-secondary)",
+          lineHeight: 1.7,
+        }}>
+          A living roadmap and working toolkit for ALICE households and community
+          organizers — eight interconnected paths to ownership, stability, and
+          shared power.
         </p>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href={handbookHref} className="btn btn--primary">{handbookLabel}</Link>
-          <Link href="/about" className="btn btn--secondary">Learn More</Link>
+          <a href="#quiz" className="btn btn--primary">Where do I start?</a>
+          <a href="#nodes" className="btn btn--secondary">See how it works</a>
         </div>
-        <p style={{ marginTop: "1.5rem", fontSize: "0.875rem", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-          &ldquo;The most radical thing we can do is build something we actually own.&rdquo;
-        </p>
+      </section>
+
+      {/* ── Routing Quiz ─────────────────────────────────────────────────── */}
+      <section id="quiz" style={{ scrollMarginTop: "80px" }}>
+        <span className="eyebrow">Find your path</span>
+        <h2 style={{ marginBottom: "1.5rem" }}>Where do you want to start?</h2>
+        <RoutingQuiz />
       </section>
 
       <hr className="divider" />
 
-      {/* Who this is for */}
+      {/* ── What This Is ─────────────────────────────────────────────────── */}
       <section>
-        <span className="eyebrow">Who This Is For</span>
-        <h2 style={{ marginBottom: "1rem" }}>For people who are done waiting.</h2>
-        <p style={{ marginBottom: "1rem" }}>
-          You&apos;ve seen what happens when the people who do the work don&apos;t own the business. The hours get cut. The wages stay flat. The profits leave the neighborhood.
+        <span className="eyebrow">What this is</span>
+        <h2 style={{ marginBottom: "1.5rem", maxWidth: "560px" }}>
+          Not a brochure. A living roadmap.
+        </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", maxWidth: "700px" }}>
+          <p>
+            Crash Out is built for two kinds of people. An ALICE household —
+            Asset Limited, Income Constrained, Employed — who is doing everything
+            right and still falling behind. And a community organizer who wants
+            to build something permanent in their city, not just another program
+            that runs out of grant money.
+          </p>
+          <p>
+            Every node on this platform is a working tool, not an explainer. You
+            can use the Housing Roadmap to find your acquisition pathway today.
+            You can start your co-op handbook right now and generate a real
+            business plan. When the Entrepreneurial Journey launches, you&apos;ll
+            be able to track your progress across eight stages and get matched
+            with peer support and Fledge coaching.
+          </p>
+          <p>
+            The value created here stays here. Co-ops buy from co-ops. Community
+            land trusts keep housing in community hands. The Fledge in Lansing
+            is the first node in a network designed to replicate itself wherever
+            people decide they&apos;re done waiting for someone else to fix things.
+          </p>
+          <p style={{ fontStyle: "italic", color: "var(--color-text-muted)" }}>
+            &ldquo;The most radical thing we can do is build something we actually own.&rdquo;
+          </p>
+        </div>
+      </section>
+
+      <hr className="divider" />
+
+      {/* ── Eight Nodes ──────────────────────────────────────────────────── */}
+      <section id="nodes" style={{ scrollMarginTop: "80px" }}>
+        <span className="eyebrow">The eight nodes</span>
+        <h2 style={{ marginBottom: "0.5rem" }}>Eight paths. One platform.</h2>
+        <p style={{ marginBottom: "2.5rem", maxWidth: "560px" }}>
+          Each node is a self-contained module — you can enter at any point. Two
+          are live now; the rest are in active development.
         </p>
-        <p>
-          A worker-owned cooperative is a direct answer to that — a business where the people who do the work own it, govern it democratically, and share in what it produces. Every worker has a voice. Every worker builds real wealth. And the value your business creates stays right here, in the community that built it.
-        </p>
-      </section>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: "1rem",
+        }}>
+          {NODES.map(({ num, abbr, name, desc, href, live, highlight }) => (
+            <div
+              key={num}
+              className={highlight ? "card--raised" : "card"}
+              style={{
+                borderLeft: highlight ? "3px solid var(--color-dome-gold)" : undefined,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+                position: "relative",
+              }}
+            >
+              {/* Header row */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{
+                  background: highlight ? "var(--color-dome-gold)" : "var(--color-river-blue)",
+                  color: highlight ? "var(--color-midnight-steel)" : "var(--color-limestone)",
+                  borderRadius: "4px",
+                  padding: "2px 7px",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  fontFamily: "var(--font-sans)",
+                  flexShrink: 0,
+                }}>
+                  {abbr}
+                </div>
+                {!live && <span className="badge badge--muted" style={{ marginLeft: "auto" }}>Coming soon</span>}
+                {live && <span className="badge badge--gold" style={{ marginLeft: "auto" }}>Live</span>}
+              </div>
 
-      {/* Four Bottom Lines */}
-      <section>
-        <span className="eyebrow">How We Measure Success</span>
-        <h2 style={{ marginBottom: "1.5rem" }}>The Four Bottom Lines</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
-          {[
-            { label: "People", color: "var(--color-river-blue)", desc: "Every worker-owner treated with dignity. Fair wages. Safe, inclusive workplaces." },
-            { label: "Planet", color: "var(--color-teal-accent)", desc: "Responsible stewardship of the natural world. Know your supply chain." },
-            { label: "Profit", color: "var(--color-dome-gold)", desc: "Financial sustainability that keeps the mission alive and builds member wealth." },
-            { label: "Ownership", color: "var(--color-limestone)", desc: "Genuine democratic governance. One worker, one vote. Power stays distributed." },
-          ].map(({ label, color, desc }) => (
-            <div key={label} className="card--accent" style={{ borderLeftColor: color }}>
-              <p style={{ fontWeight: 700, color, marginBottom: "0.4rem" }}>{label}</p>
-              <p style={{ fontSize: "0.875rem" }}>{desc}</p>
+              {/* Name */}
+              <p style={{
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700,
+                fontSize: "1rem",
+                color: highlight ? "var(--color-dome-gold)" : "var(--color-limestone)",
+                lineHeight: 1.3,
+              }}>
+                {name}
+              </p>
+
+              {/* Description */}
+              <p style={{ fontSize: "0.875rem", flex: 1 }}>{desc}</p>
+
+              {/* CTA */}
+              {live ? (
+                <Link
+                  href={href}
+                  style={{
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    color: highlight ? "var(--color-dome-gold)" : "var(--color-river-blue)",
+                    textDecoration: "none",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  Enter &rarr;
+                </Link>
+              ) : (
+                <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", alignSelf: "flex-start" }}>
+                  In development
+                </span>
+              )}
             </div>
           ))}
         </div>
       </section>
 
-      {/* PDCA */}
-      <section>
-        <span className="eyebrow">How It Works</span>
-        <h2 style={{ marginBottom: "1rem" }}>The PDCA Cycle</h2>
-        <p style={{ marginBottom: "1.5rem" }}>Everything in this handbook runs on one simple loop borrowed from science:</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem" }}>
-          {[
-            { step: "Plan", desc: "Understand the problem. Develop your idea as a group. Build a shared hypothesis." },
-            { step: "Do", desc: "Test it together. Get it in front of real people. Start before it's perfect." },
-            { step: "Check", desc: "Look at what's actually happening. Collect real feedback and real data." },
-            { step: "Act", desc: "Change what isn't working. Double down on what is. Then start the loop again." },
-          ].map(({ step, desc }) => (
-            <div key={step} className="card">
-              <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.1rem", color: "var(--color-dome-gold)", marginBottom: "0.5rem" }}>{step}</p>
-              <p style={{ fontSize: "0.875rem" }}>{desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Ethical Floor */}
-      <section>
-        <span className="eyebrow">Our Shared Values</span>
-        <h2 style={{ marginBottom: "1rem" }}>The Ethical Floor</h2>
-        <p style={{ marginBottom: "1.5rem" }}>These aren&apos;t rules handed down from above — they&apos;re the commitments your founding group makes to each other, your workers, and your community from day one.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {[
-            { title: "Living Wages", desc: "Every worker-owner earns enough to live with dignity. The minimum wage is not the living wage." },
-            { title: "No Exploitation", desc: "Your fellow worker-owners, customers, and community deserve to be treated as whole human beings." },
-            { title: "Democratic Governance", desc: "One worker, one vote. Not one dollar, one vote." },
-            { title: "Transparency", desc: "Open books. Honest numbers. Real conversations. Secrets are how power concentrates." },
-            { title: "Community Benefit", desc: "Local suppliers. Local jobs. Local investment. Keep the value in the neighborhood." },
-            { title: "Co-ops Buy From Co-ops", desc: "When we choose our suppliers, vendors, and service providers, we look inside the network first. Keeping value circulating within the co-op ecosystem is how we grow together." },
-          ].map(({ title, desc }) => (
-            <div key={title} className="card--raised" style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
-              <strong style={{ whiteSpace: "nowrap", minWidth: "160px" }}>{title}</strong>
-              <p style={{ fontSize: "0.9rem", margin: 0 }}>{desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
+      {/* ── CTA ──────────────────────────────────────────────────────────── */}
       <section style={{ textAlign: "center", padding: "2rem 0 3rem" }}>
-        <h2 style={{ marginBottom: "1rem" }}>Ready to build?</h2>
-        <p style={{ marginBottom: "2rem", maxWidth: "480px", margin: "0 auto 2rem" }}>
-          Create a free account to start your co-op handbook. Save your answers, collaborate with your founding group, and generate your full business plan.
+        <h2 style={{ marginBottom: "1rem" }}>Start where you are.</h2>
+        <p style={{ marginBottom: "2rem", maxWidth: "480px", margin: "0 auto 2rem", color: "var(--color-text-secondary)" }}>
+          Two nodes are live right now. Worker Co-op Builder and Housing Roadmap — both free, no account required to explore.
         </p>
-        <Link href={handbookHref} className="btn btn--primary">{handbookLabel}</Link>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+          <Link href="/co-op" className="btn btn--primary">Co-op Builder</Link>
+          <Link href="/housing" className="btn btn--secondary">Housing Roadmap</Link>
+        </div>
       </section>
 
     </div>

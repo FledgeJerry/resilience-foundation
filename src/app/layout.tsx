@@ -31,11 +31,66 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <footer className="site-footer">
-            <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", margin: 0 }}>
-              resilience.foundation — a project of{" "}
-              <a href="https://thefledge.com" target="_blank" rel="noopener noreferrer">The Fledge</a>
-              {" "}· 1300 Eureka Street, Lansing, MI
-            </p>
+            <div style={{
+              maxWidth: "1100px",
+              margin: "0 auto",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "2rem",
+              textAlign: "left",
+              padding: "2rem 0 1.5rem",
+            }}>
+              {/* Left: branding */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <p style={{ fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-limestone)", fontSize: "1rem", margin: 0 }}>
+                  Crash Out<span style={{ color: "var(--color-dome-gold)" }}>:</span> A Resiliency Hub
+                </p>
+                <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", margin: 0 }}>
+                  A project of{" "}
+                  <a href="https://thefledge.com" target="_blank" rel="noopener noreferrer">The Fledge</a>
+                  <br />1300 Eureka Street, Lansing, MI
+                </p>
+              </div>
+
+              {/* Center: nodes + pages */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <p style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>
+                  The Eight Nodes
+                </p>
+                {[
+                  { label: "Worker Co-op Builder", href: "/co-op" },
+                  { label: "Housing Roadmap", href: "/housing" },
+                  { label: "Basic Needs Map", href: "/needs" },
+                  { label: "Entrepreneurial Journey", href: "/journey" },
+                  { label: "Replicate It", href: "/replicate" },
+                  { label: "Research + Benchmarks", href: "/research" },
+                  { label: "Governance Library", href: "/governance" },
+                  { label: "Crash Out Pulse", href: "/pulse" },
+                ].map(({ label, href }) => (
+                  <a key={href} href={href} style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", display: "block" }}>{label}</a>
+                ))}
+              </div>
+
+              {/* Right: about + open source */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <p style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>
+                  Platform
+                </p>
+                {[
+                  { label: "About", href: "/about" },
+                  { label: "Directory", href: "/directory" },
+                  { label: "Open Source", href: "https://github.com/FledgeJerry" },
+                ].map(({ label, href }) => (
+                  <a key={href} href={href} style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", display: "block" }}>{label}</a>
+                ))}
+                <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--color-text-muted)", lineHeight: 1.6 }}>
+                  Built in Lansing.<br />Open to everywhere.
+                </p>
+                <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
+                  CC BY-SA — share and adapt freely.
+                </p>
+              </div>
+            </div>
           </footer>
         </SessionProvider>
       </body>
