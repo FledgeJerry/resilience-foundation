@@ -19,6 +19,7 @@ export default function Nav() {
         <>
           <li><Link href="/handbook" onClick={() => setOpen(false)}>My Handbook</Link></li>
           <li><Link href="/documents" onClick={() => setOpen(false)}>Documents</Link></li>
+          <li><Link href="/housing/projects" onClick={() => setOpen(false)}>My Housing</Link></li>
           <li><Link href="/profile" onClick={() => setOpen(false)}>Profile</Link></li>
           {session.user.role === "ADMIN" && (
             <li><Link href="/admin" onClick={() => setOpen(false)}>Admin</Link></li>

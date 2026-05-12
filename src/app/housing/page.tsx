@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -477,7 +478,8 @@ function ResultsPage({ deal, treasury, onRestart }: { deal: Deal; treasury: Trea
           Connect with the Fledge Forward team to identify properties, structure the share offering, and get your community organized.
         </p>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/about" className="btn btn--primary">Connect with Fledge Forward</Link>
+          <Link href="/housing/projects" className="btn btn--primary">Start a workbook project →</Link>
+          <Link href="/about" className="btn btn--secondary">Connect with Fledge Forward</Link>
           <button className="btn btn--ghost" onClick={onRestart}>Model another house</button>
         </div>
       </div>
@@ -488,6 +490,7 @@ function ResultsPage({ deal, treasury, onRestart }: { deal: Deal; treasury: Trea
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HousingPage() {
+  const { data: session } = useSession();
   const [step, setStep] = useState<Step>("intro");
   const [deal, setDeal] = useState<Deal>({ purchasePrice: "", renovationCost: "", postRenoValue: "", shareCount: "1000", treasuryReservePct: "10" });
   const [treasury, setTreasury] = useState<Treasury>({ monthlyRent: "", propertyTax: "", insurance: "", maintenanceReserve: "", rainyDayPct: "10" });
@@ -502,6 +505,23 @@ export default function HousingPage() {
 
   return (
     <div style={{ maxWidth: "760px", margin: "0 auto" }}>
+      {/* Workbook CTA */}
+      <div style={{ marginBottom: "2rem", padding: "1rem 1.25rem", background: session ? "rgba(46,109,164,0.1)" : "var(--color-surface)", border: `1px solid ${session ? "rgba(46,109,164,0.3)" : "var(--color-border-strong)"}`, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+        <div>
+          <p style={{ fontWeight: 600, color: "var(--color-limestone)", fontSize: "0.9rem", marginBottom: "0.2rem" }}>
+            {session ? "Your Sunshine House workbook" : "Ready to build a real project?"}
+          </p>
+          <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+            {session
+              ? "Track your property, shareholders, treasury, and generate all four documents."
+              : "Create an account to start a workbook — collect shareholders, manage your treasury, and generate documents."}
+          </p>
+        </div>
+        <Link href={session ? "/housing/projects" : "/register"} className="btn btn--primary btn--sm" style={{ flexShrink: 0 }}>
+          {session ? "My Projects →" : "Get started →"}
+        </Link>
+      </div>
+
       <ProgressBar step={stepIndex} />
 
       {step === "intro" && <IntroPage onStart={() => setStep("deal")} />}

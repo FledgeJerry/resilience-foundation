@@ -42,9 +42,10 @@ model User {
 
   emailSubscribed Boolean  @default(false)
 
-  accounts        Account[]
-  sessions        Session[]
-  coopMemberships CoopMember[]
+  accounts          Account[]
+  sessions          Session[]
+  coopMemberships   CoopMember[]
+  housingMemberships HousingMember[]
 }
 
 model Coop {
@@ -108,6 +109,126 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+// ── Housing Workbook ──────────────────────────────────────────────────────────
+
+enum HousingProjectStatus {
+  PLANNING
+  RAISING
+  PURCHASED
+  RENOVATING
+  RENTING
+  SOLD
+}
+
+enum HousingMemberRole {
+  OWNER
+  EDITOR
+}
+
+enum TreasuryEntryType {
+  INCOME
+  EXPENSE
+}
+
+model HousingProject {
+  id     String               @id @default(cuid())
+  name   String
+  status HousingProjectStatus @default(PLANNING)
+
+  // Property
+  address         String?
+  purchasePrice   Float?
+  renovationCost  Float?
+  postRenoValue   Float?
+  targetCloseDate DateTime?
+  notes           String?
+
+  // Share structure
+  totalShares        Int   @default(1000)
+  treasuryReservePct Float @default(10)
+
+  // Governance
+  quorumPct       Float  @default(60)
+  simpleThreshold Float  @default(51)
+  superThreshold  Float  @default(75)
+  meetingCadence  String @default("Monthly")
+  disputeProcess  String @default("Peer mediation first, then community mediation")
+
+  // Treasury baseline (monthly estimates)
+  monthlyRent        Float?
+  propertyTax        Float?
+  insurance          Float?
+  maintenanceReserve Float?
+  rainyDayPct        Float  @default(10)
+
+  members         HousingMember[]
+  shareholders    HousingShareHolder[]
+  treasuryEntries TreasuryEntry[]
+  treasuryVotes   TreasuryVote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HousingMember {
+  id        String            @id @default(cuid())
+  projectId String
+  userId    String
+  role      HousingMemberRole @default(EDITOR)
+
+  project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model HousingShareHolder {
+  id        String @id @default(cuid())
+  projectId String
+
+  name       String
+  email      String?
+  phone      String?
+  shareCount Int
+  amountPaid Float   @default(0)
+  isTreasury Boolean @default(false)
+  notes      String?
+
+  project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model TreasuryEntry {
+  id        String           @id @default(cuid())
+  projectId String
+  date      DateTime
+  type      TreasuryEntryType
+  category  String
+  description String?
+  amount    Float
+
+  project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model TreasuryVote {
+  id          String @id @default(cuid())
+  projectId   String
+  periodLabel String
+  surplus     Float
+  decision    String
+  amountDistributed Float @default(0)
+  notes       String?
+
+  project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// ── Co-op Handbook ────────────────────────────────────────────────────────────
 
 model HandbookEntry {
   id        String   @id @default(cuid())

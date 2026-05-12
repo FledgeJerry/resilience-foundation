@@ -1,0 +1,794 @@
+"use client";
+
+import { useCallback, useEffect, useState, use } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Shareholder = {
+  id: string; name: string; email: string | null; phone: string | null;
+  shareCount: number; amountPaid: number; isTreasury: boolean; notes: string | null;
+};
+type TreasuryEntry = {
+  id: string; date: string; type: "INCOME" | "EXPENSE";
+  category: string; description: string | null; amount: number;
+};
+type TreasuryVote = {
+  id: string; periodLabel: string; surplus: number; decision: string;
+  amountDistributed: number; notes: string | null; createdAt: string;
+};
+type Project = {
+  id: string; name: string; status: string;
+  address: string | null; purchasePrice: number | null; renovationCost: number | null;
+  postRenoValue: number | null; targetCloseDate: string | null; notes: string | null;
+  totalShares: number; treasuryReservePct: number;
+  quorumPct: number; simpleThreshold: number; superThreshold: number;
+  meetingCadence: string; disputeProcess: string;
+  monthlyRent: number | null; propertyTax: number | null; insurance: number | null;
+  maintenanceReserve: number | null; rainyDayPct: number;
+  shareholders: Shareholder[];
+  treasuryEntries: TreasuryEntry[];
+  treasuryVotes: TreasuryVote[];
+};
+
+// ─── Derived math ─────────────────────────────────────────────────────────────
+
+function dealMath(p: Project) {
+  const totalRaise = (p.purchasePrice ?? 0) + (p.renovationCost ?? 0);
+  const treasuryShares = Math.round(p.totalShares * p.treasuryReservePct / 100);
+  const publicShares = p.totalShares - treasuryShares;
+  const issuePrice = publicShares > 0 && totalRaise > 0 ? totalRaise / publicShares : 0;
+  const perShareValue = p.postRenoValue && p.totalShares > 0 ? p.postRenoValue / p.totalShares : 0;
+  const equityBuffer = (p.postRenoValue ?? 0) - totalRaise;
+  return { totalRaise, treasuryShares, publicShares, issuePrice, perShareValue, equityBuffer };
+}
+
+function treasuryMath(p: Project) {
+  const entries = p.treasuryEntries;
+  const totalIncome = entries.filter(e => e.type === "INCOME").reduce((s, e) => s + e.amount, 0);
+  const totalExpense = entries.filter(e => e.type === "EXPENSE").reduce((s, e) => s + e.amount, 0);
+  const net = totalIncome - totalExpense;
+  return { totalIncome, totalExpense, net };
+}
+
+// ─── Shared UI ────────────────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", background: "var(--color-surface-raised)", border: "1px solid var(--color-border-strong)",
+  borderRadius: "6px", padding: "0.6rem 0.875rem", color: "var(--color-limestone)",
+  fontFamily: "var(--font-sans)", fontSize: "0.95rem", outline: "none",
+};
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+      <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-text-secondary)" }}>{label}</label>
+      {children}
+      {hint && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{hint}</p>}
+    </div>
+  );
+}
+
+function StatChip({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "0.75rem 1rem", textAlign: "center" }}>
+      <p style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>{label}</p>
+      <p style={{ fontWeight: 700, fontSize: "1rem", color: accent ? "var(--color-dome-gold)" : "var(--color-limestone)" }}>{value}</p>
+    </div>
+  );
+}
+
+const TABS = ["Property", "Offering", "Shareholders", "Governance", "Treasury", "Documents"] as const;
+type Tab = (typeof TABS)[number];
+
+const STATUS_OPTIONS = ["PLANNING", "RAISING", "PURCHASED", "RENOVATING", "RENTING", "SOLD"];
+
+// ─── Tab: Property ────────────────────────────────────────────────────────────
+
+function PropertyTab({ project, onSave }: { project: Project; onSave: (data: Partial<Project>) => Promise<void> }) {
+  const [form, setForm] = useState({
+    name: project.name, status: project.status,
+    address: project.address ?? "", purchasePrice: project.purchasePrice?.toString() ?? "",
+    renovationCost: project.renovationCost?.toString() ?? "",
+    postRenoValue: project.postRenoValue?.toString() ?? "",
+    targetCloseDate: project.targetCloseDate ? project.targetCloseDate.slice(0, 10) : "",
+    notes: project.notes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    await onSave({
+      name: form.name, status: form.status, address: form.address || null,
+      purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
+      renovationCost: form.renovationCost ? parseFloat(form.renovationCost) : null,
+      postRenoValue: form.postRenoValue ? parseFloat(form.postRenoValue) : null,
+      targetCloseDate: form.targetCloseDate ? form.targetCloseDate : null,
+      notes: form.notes || null,
+    });
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
+  }
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: "560px" }}>
+      <Field label="Project name"><input style={inputStyle} value={form.name} onChange={e => set("name", e.target.value)} /></Field>
+      <Field label="Status">
+        <select style={inputStyle} value={form.status} onChange={e => set("status", e.target.value)}>
+          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>)}
+        </select>
+      </Field>
+      <Field label="Property address" hint="Full street address including city, state, zip">
+        <input style={inputStyle} value={form.address} onChange={e => set("address", e.target.value)} placeholder="e.g. 123 Maple St, Lansing, MI 48906" />
+      </Field>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <Field label="Purchase price ($)">
+          <input type="number" style={inputStyle} value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="50000" />
+        </Field>
+        <Field label="Renovation budget ($)">
+          <input type="number" style={inputStyle} value={form.renovationCost} onChange={e => set("renovationCost", e.target.value)} placeholder="25000" />
+        </Field>
+        <Field label="Post-renovation value ($)" hint="Conservative ARV">
+          <input type="number" style={inputStyle} value={form.postRenoValue} onChange={e => set("postRenoValue", e.target.value)} placeholder="100000" />
+        </Field>
+        <Field label="Target close date">
+          <input type="date" style={inputStyle} value={form.targetCloseDate} onChange={e => set("targetCloseDate", e.target.value)} />
+        </Field>
+      </div>
+      <Field label="Notes / property description">
+        <textarea style={{ ...inputStyle, minHeight: "100px" }} value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Bedrooms, lot size, neighborhood notes, condition, seller situation…" />
+      </Field>
+      <button className="btn btn--primary" style={{ alignSelf: "flex-start" }} onClick={save} disabled={saving}>
+        {saving ? "Saving…" : saved ? "Saved!" : "Save property"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Tab: Offering ────────────────────────────────────────────────────────────
+
+function OfferingTab({ project, onSave }: { project: Project; onSave: (data: Partial<Project>) => Promise<void> }) {
+  const [form, setForm] = useState({
+    totalShares: project.totalShares.toString(),
+    treasuryReservePct: project.treasuryReservePct.toString(),
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const totalShares = Math.max(1, parseInt(form.totalShares) || 1000);
+  const reservePct = Math.min(99, Math.max(0, parseFloat(form.treasuryReservePct) || 10));
+  const treasuryShares = Math.round(totalShares * reservePct / 100);
+  const publicShares = totalShares - treasuryShares;
+  const totalRaise = (project.purchasePrice ?? 0) + (project.renovationCost ?? 0);
+  const issuePrice = publicShares > 0 && totalRaise > 0 ? totalRaise / publicShares : 0;
+  const perShareValue = project.postRenoValue && totalShares > 0 ? project.postRenoValue / totalShares : 0;
+  const treasuryStake = treasuryShares * perShareValue;
+
+  async function save() {
+    setSaving(true);
+    await onSave({ totalShares, treasuryReservePct: reservePct });
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", maxWidth: "480px" }}>
+        <Field label="Total shares to issue" hint="Post-renovation, each share = post-reno value ÷ total shares.">
+          <input type="number" style={inputStyle} value={form.totalShares} onChange={e => setForm(f => ({ ...f, totalShares: e.target.value }))} />
+        </Field>
+        <Field label="Treasury reserve (%)" hint="Shares held by the treasury — not sold at launch. Sold later to new members or for future fundraising.">
+          <input type="number" min="0" max="99" style={inputStyle} value={form.treasuryReservePct} onChange={e => setForm(f => ({ ...f, treasuryReservePct: e.target.value }))} />
+        </Field>
+      </div>
+
+      {/* Share split bar */}
+      <div>
+        <p style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>
+          Share structure ({totalShares.toLocaleString()} total)
+        </p>
+        <div style={{ display: "flex", height: "20px", borderRadius: "4px", overflow: "hidden", marginBottom: "0.5rem" }}>
+          <div style={{ flex: publicShares, background: "var(--color-dome-gold)" }} />
+          <div style={{ flex: treasuryShares, background: "var(--color-river-blue)" }} />
+        </div>
+        <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.78rem" }}>
+          <span><span style={{ display: "inline-block", width: "10px", height: "10px", background: "var(--color-dome-gold)", borderRadius: "2px", marginRight: "0.4rem" }} />Public: <strong style={{ color: "var(--color-limestone)" }}>{publicShares.toLocaleString()}</strong></span>
+          <span><span style={{ display: "inline-block", width: "10px", height: "10px", background: "var(--color-river-blue)", borderRadius: "2px", marginRight: "0.4rem" }} />Treasury: <strong style={{ color: "var(--color-limestone)" }}>{treasuryShares.toLocaleString()}</strong></span>
+        </div>
+      </div>
+
+      {/* Live stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>
+        <StatChip label="Total raise" value={totalRaise > 0 ? `$${totalRaise.toLocaleString()}` : "—"} />
+        <StatChip label="Issue price / share" value={issuePrice > 0 ? `$${issuePrice.toFixed(2)}` : "—"} accent />
+        <StatChip label="Per-share value day 1" value={perShareValue > 0 ? `$${perShareValue.toFixed(2)}` : "—"} accent={perShareValue > issuePrice} />
+        <StatChip label="Treasury stake (post-reno)" value={treasuryStake > 0 ? `$${treasuryStake.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"} accent />
+      </div>
+
+      {!project.purchasePrice && <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>Enter purchase price and renovation cost on the Property tab to see live pricing.</p>}
+
+      <button className="btn btn--primary" style={{ alignSelf: "flex-start" }} onClick={save} disabled={saving}>
+        {saving ? "Saving…" : saved ? "Saved!" : "Save offering"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Tab: Shareholders ────────────────────────────────────────────────────────
+
+function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
+  const [shareholders, setShareholders] = useState<Shareholder[]>(project.shareholders);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false });
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editPaid, setEditPaid] = useState("");
+
+  const { publicShares, treasuryShares, issuePrice, perShareValue } = dealMath(project);
+  const sold = shareholders.filter(s => !s.isTreasury).reduce((s, h) => s + h.shareCount, 0);
+  const treasurySold = shareholders.filter(s => s.isTreasury).reduce((s, h) => s + h.shareCount, 0);
+  const totalRaised = shareholders.reduce((s, h) => s + h.amountPaid, 0);
+  const pct = publicShares > 0 ? Math.min(100, (sold / publicShares) * 100) : 0;
+
+  async function addShareholder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name || !form.shareCount) return;
+    setAdding(true);
+    const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, shareCount: parseInt(form.shareCount), amountPaid: parseFloat(form.amountPaid || "0") }),
+    });
+    if (res.ok) {
+      const s = await res.json();
+      setShareholders(prev => [...prev, s]);
+      setForm({ name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false });
+      setShowForm(false);
+      onRefresh();
+    }
+    setAdding(false);
+  }
+
+  async function updatePaid(id: string) {
+    const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shareholderId: id, amountPaid: parseFloat(editPaid) }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setShareholders(prev => prev.map(s => s.id === id ? updated : s));
+      setEditId(null);
+    }
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Remove this shareholder?")) return;
+    const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shareholderId: id }),
+    });
+    if (res.ok) { setShareholders(prev => prev.filter(s => s.id !== id)); onRefresh(); }
+  }
+
+  const setF = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+      {/* Summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.75rem" }}>
+        <StatChip label="Public shares sold" value={`${sold} / ${publicShares}`} />
+        <StatChip label="Treasury shares" value={`${treasurySold} / ${treasuryShares}`} />
+        <StatChip label="Total raised" value={`$${totalRaised.toLocaleString()}`} accent />
+        <StatChip label="Raise progress" value={`${pct.toFixed(0)}%`} accent={pct >= 100} />
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div style={{ height: "8px", background: "var(--color-border-strong)", borderRadius: "4px", overflow: "hidden" }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: pct >= 100 ? "var(--color-teal-accent)" : "var(--color-dome-gold)", transition: "width 0.3s" }} />
+        </div>
+        <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.3rem" }}>Public raise: {pct.toFixed(0)}% funded</p>
+      </div>
+
+      {/* Add form */}
+      <div>
+        <button className="btn btn--secondary btn--sm" onClick={() => setShowForm(v => !v)}>+ Add shareholder</button>
+        {showForm && (
+          <form onSubmit={addShareholder} style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.25rem", maxWidth: "560px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <Field label="Name *"><input style={inputStyle} required value={form.name} onChange={e => setF("name", e.target.value)} placeholder="Full name" /></Field>
+              <Field label="Email"><input type="email" style={inputStyle} value={form.email} onChange={e => setF("email", e.target.value)} placeholder="optional" /></Field>
+              <Field label="Phone"><input style={inputStyle} value={form.phone} onChange={e => setF("phone", e.target.value)} placeholder="optional" /></Field>
+              <Field label="Shares *" hint={issuePrice > 0 ? `$${issuePrice.toFixed(2)} each` : undefined}>
+                <input type="number" style={inputStyle} required min="1" value={form.shareCount} onChange={e => setF("shareCount", e.target.value)} placeholder="e.g. 5" />
+              </Field>
+              <Field label="Amount paid ($)">
+                <input type="number" style={inputStyle} min="0" value={form.amountPaid} onChange={e => setF("amountPaid", e.target.value)} placeholder="0" />
+              </Field>
+              <Field label="Type">
+                <select style={inputStyle} value={form.isTreasury ? "treasury" : "public"} onChange={e => setF("isTreasury", e.target.value === "treasury")}>
+                  <option value="public">Public shareholder</option>
+                  <option value="treasury">Treasury reserve</option>
+                </select>
+              </Field>
+            </div>
+            <Field label="Notes"><input style={inputStyle} value={form.notes} onChange={e => setF("notes", e.target.value)} placeholder="Optional notes" /></Field>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button type="submit" className="btn btn--primary btn--sm" disabled={adding}>{adding ? "Adding…" : "Add"}</button>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowForm(false)}>Cancel</button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* Table */}
+      {shareholders.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table className="ll-table">
+            <thead>
+              <tr>
+                <th>Name</th><th>Type</th><th>Shares</th>
+                <th>Value (day 1)</th><th>Amount paid</th><th>Paid?</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {shareholders.map(s => {
+                const shareVal = perShareValue > 0 ? s.shareCount * perShareValue : 0;
+                const due = issuePrice > 0 ? s.shareCount * issuePrice : 0;
+                const paid = s.amountPaid >= due && due > 0;
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <p style={{ color: "var(--color-limestone)", fontWeight: 600, fontSize: "0.9rem" }}>{s.name}</p>
+                      {s.email && <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{s.email}</p>}
+                    </td>
+                    <td><span className={`badge ${s.isTreasury ? "badge--blue" : "badge--gold"}`}>{s.isTreasury ? "Treasury" : "Public"}</span></td>
+                    <td style={{ color: "var(--color-limestone)" }}>{s.shareCount.toLocaleString()}</td>
+                    <td style={{ color: shareVal > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)" }}>{shareVal > 0 ? `$${shareVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</td>
+                    <td>
+                      {editId === s.id ? (
+                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                          <input type="number" style={{ ...inputStyle, width: "90px", padding: "0.3rem 0.5rem", fontSize: "0.85rem" }} value={editPaid} onChange={e => setEditPaid(e.target.value)} />
+                          <button className="btn btn--primary btn--sm" onClick={() => updatePaid(s.id)}>Save</button>
+                          <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setEditId(s.id); setEditPaid(s.amountPaid.toString()); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-limestone)", fontSize: "0.9rem" }}>
+                          ${s.amountPaid.toLocaleString()}
+                        </button>
+                      )}
+                    </td>
+                    <td><span className={`badge ${paid ? "badge--teal" : "badge--muted"}`}>{paid ? "Paid" : "Pending"}</span></td>
+                    <td>
+                      <button onClick={() => remove(s.id)} className="btn btn--danger btn--sm">Remove</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Governance ──────────────────────────────────────────────────────────
+
+function GovernanceTab({ project, onSave }: { project: Project; onSave: (data: Partial<Project>) => Promise<void> }) {
+  const [form, setForm] = useState({
+    quorumPct: project.quorumPct.toString(), simpleThreshold: project.simpleThreshold.toString(),
+    superThreshold: project.superThreshold.toString(), meetingCadence: project.meetingCadence,
+    disputeProcess: project.disputeProcess,
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  async function save() {
+    setSaving(true);
+    await onSave({ quorumPct: parseFloat(form.quorumPct), simpleThreshold: parseFloat(form.simpleThreshold), superThreshold: parseFloat(form.superThreshold), meetingCadence: form.meetingCadence, disputeProcess: form.disputeProcess });
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+      <div className="card" style={{ padding: "1rem 1.25rem" }}>
+        <p style={{ fontSize: "0.82rem", color: "var(--color-dome-gold)", fontWeight: 600, marginBottom: "0.4rem" }}>One person, one vote</p>
+        <p style={{ fontSize: "0.85rem" }}>This is locked — voting power never scales with share count. Every shareholder has one equal vote, regardless of how many shares they hold.</p>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", maxWidth: "560px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
+          <Field label="Quorum (%)" hint="Minimum attendance for a valid vote">
+            <input type="number" min="1" max="100" style={inputStyle} value={form.quorumPct} onChange={e => set("quorumPct", e.target.value)} />
+          </Field>
+          <Field label="Simple majority (%)" hint="Day-to-day decisions">
+            <input type="number" min="1" max="100" style={inputStyle} value={form.simpleThreshold} onChange={e => set("simpleThreshold", e.target.value)} />
+          </Field>
+          <Field label="Supermajority (%)" hint="Major decisions — sale, large expenses, new members">
+            <input type="number" min="1" max="100" style={inputStyle} value={form.superThreshold} onChange={e => set("superThreshold", e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Meeting cadence">
+          <select style={inputStyle} value={form.meetingCadence} onChange={e => set("meetingCadence", e.target.value)}>
+            {["Weekly", "Bi-weekly", "Monthly", "Quarterly"].map(v => <option key={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Dispute resolution process">
+          <textarea style={{ ...inputStyle, minHeight: "80px" }} value={form.disputeProcess} onChange={e => set("disputeProcess", e.target.value)} />
+        </Field>
+      </div>
+
+      {/* Decision matrix */}
+      <div>
+        <p style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.75rem" }}>Decision matrix</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {[
+            { type: "Simple majority", threshold: `${form.simpleThreshold}%`, examples: "House rules, maintenance scheduling, meeting agenda, minor purchases" },
+            { type: "Supermajority", threshold: `${form.superThreshold}%`, examples: "New members, capital expenditures, renovation projects, sale of property" },
+            { type: "Unanimous (recommended)", threshold: "100%", examples: "Dissolution, fundamental changes to governance structure" },
+          ].map(row => (
+            <div key={row.type} style={{ display: "flex", gap: "1rem", padding: "0.75rem 1rem", background: "var(--color-surface)", borderRadius: "6px", border: "1px solid var(--color-border)", alignItems: "flex-start" }}>
+              <div style={{ minWidth: "160px" }}>
+                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-limestone)" }}>{row.type}</p>
+                <p style={{ fontSize: "0.78rem", color: "var(--color-dome-gold)" }}>{row.threshold}</p>
+              </div>
+              <p style={{ fontSize: "0.82rem", color: "var(--color-text-secondary)" }}>{row.examples}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button className="btn btn--primary" style={{ alignSelf: "flex-start" }} onClick={save} disabled={saving}>
+        {saving ? "Saving…" : saved ? "Saved!" : "Save governance"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Tab: Treasury ────────────────────────────────────────────────────────────
+
+function TreasuryTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
+  const [entries, setEntries] = useState<TreasuryEntry[]>(project.treasuryEntries);
+  const [votes, setVotes] = useState<TreasuryVote[]>(project.treasuryVotes);
+  const [entryForm, setEntryForm] = useState({ date: new Date().toISOString().slice(0, 10), type: "INCOME", category: "", description: "", amount: "" });
+  const [voteForm, setVoteForm] = useState({ periodLabel: "", surplus: "", decision: "distribute", amountDistributed: "", notes: "" });
+  const [addingEntry, setAddingEntry] = useState(false);
+  const [addingVote, setAddingVote] = useState(false);
+  const [showEntryForm, setShowEntryForm] = useState(false);
+  const [showVoteForm, setShowVoteForm] = useState(false);
+  const [activeSection, setActiveSection] = useState<"ledger" | "votes">("ledger");
+
+  const totalIncome = entries.filter(e => e.type === "INCOME").reduce((s, e) => s + e.amount, 0);
+  const totalExpense = entries.filter(e => e.type === "EXPENSE").reduce((s, e) => s + e.amount, 0);
+  const net = totalIncome - totalExpense;
+
+  const INCOME_CATS = ["Rent", "Share sale", "Grant", "Donation", "Interest", "Other income"];
+  const EXPENSE_CATS = ["Property tax", "Insurance", "Maintenance", "Utilities", "Management", "Legal", "Rainy-day fund", "Distribution", "Other expense"];
+
+  async function addEntry(e: React.FormEvent) {
+    e.preventDefault();
+    setAddingEntry(true);
+    const res = await fetch(`/api/housing/projects/${project.id}/treasury`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...entryForm, amount: parseFloat(entryForm.amount) }),
+    });
+    if (res.ok) {
+      const entry = await res.json();
+      setEntries(prev => [entry, ...prev]);
+      setEntryForm({ date: new Date().toISOString().slice(0, 10), type: "INCOME", category: "", description: "", amount: "" });
+      setShowEntryForm(false); onRefresh();
+    }
+    setAddingEntry(false);
+  }
+
+  async function deleteEntry(id: string) {
+    if (!confirm("Delete this entry?")) return;
+    const res = await fetch(`/api/housing/projects/${project.id}/treasury`, {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entryId: id }),
+    });
+    if (res.ok) { setEntries(prev => prev.filter(e => e.id !== id)); onRefresh(); }
+  }
+
+  async function addVote(e: React.FormEvent) {
+    e.preventDefault();
+    setAddingVote(true);
+    const res = await fetch(`/api/housing/projects/${project.id}/votes`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...voteForm, surplus: parseFloat(voteForm.surplus), amountDistributed: parseFloat(voteForm.amountDistributed || "0") }),
+    });
+    if (res.ok) {
+      const vote = await res.json();
+      setVotes(prev => [vote, ...prev]);
+      setVoteForm({ periodLabel: "", surplus: "", decision: "distribute", amountDistributed: "", notes: "" });
+      setShowVoteForm(false);
+    }
+    setAddingVote(false);
+  }
+
+  async function deleteVote(id: string) {
+    if (!confirm("Delete this vote record?")) return;
+    const res = await fetch(`/api/housing/projects/${project.id}/votes`, {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voteId: id }),
+    });
+    if (res.ok) setVotes(prev => prev.filter(v => v.id !== id));
+  }
+
+  const setEF = (k: string, v: string) => setEntryForm(f => ({ ...f, [k]: v }));
+  const setVF = (k: string, v: string) => setVoteForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+      {/* Summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.75rem" }}>
+        <StatChip label="Total income" value={`$${totalIncome.toLocaleString()}`} accent />
+        <StatChip label="Total expenses" value={`$${totalExpense.toLocaleString()}`} />
+        <StatChip label="Net position" value={`${net >= 0 ? "+" : ""}$${net.toLocaleString()}`} accent={net >= 0} />
+        <StatChip label="Ledger entries" value={entries.length.toString()} />
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        <button className={`tab-btn ${activeSection === "ledger" ? "active" : ""}`} onClick={() => setActiveSection("ledger")}>Ledger</button>
+        <button className={`tab-btn ${activeSection === "votes" ? "active" : ""}`} onClick={() => setActiveSection("votes")}>Surplus votes ({votes.length})</button>
+      </div>
+
+      {activeSection === "ledger" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <button className="btn btn--secondary btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShowEntryForm(v => !v)}>+ Add entry</button>
+
+          {showEntryForm && (
+            <form onSubmit={addEntry} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "560px", padding: "1.25rem", background: "var(--color-surface)", borderRadius: "10px", border: "1px solid var(--color-border-strong)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <Field label="Date"><input type="date" style={inputStyle} required value={entryForm.date} onChange={e => setEF("date", e.target.value)} /></Field>
+                <Field label="Type">
+                  <select style={inputStyle} value={entryForm.type} onChange={e => setEF("type", e.target.value)}>
+                    <option value="INCOME">Income</option>
+                    <option value="EXPENSE">Expense</option>
+                  </select>
+                </Field>
+                <Field label="Category">
+                  <select style={inputStyle} value={entryForm.category} onChange={e => setEF("category", e.target.value)} required>
+                    <option value="">Select…</option>
+                    {(entryForm.type === "INCOME" ? INCOME_CATS : EXPENSE_CATS).map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Amount ($)"><input type="number" style={inputStyle} required min="0" step="0.01" value={entryForm.amount} onChange={e => setEF("amount", e.target.value)} /></Field>
+              </div>
+              <Field label="Description (optional)"><input style={inputStyle} value={entryForm.description} onChange={e => setEF("description", e.target.value)} placeholder="e.g. May rent from tenant" /></Field>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button type="submit" className="btn btn--primary btn--sm" disabled={addingEntry}>{addingEntry ? "Saving…" : "Add entry"}</button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowEntryForm(false)}>Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {entries.length > 0 ? (
+            <div style={{ overflowX: "auto" }}>
+              <table className="ll-table">
+                <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+                <tbody>
+                  {entries.map(e => (
+                    <tr key={e.id}>
+                      <td style={{ whiteSpace: "nowrap" }}>{new Date(e.date).toLocaleDateString()}</td>
+                      <td><span className={`badge ${e.type === "INCOME" ? "badge--teal" : "badge--danger"}`}>{e.type === "INCOME" ? "Income" : "Expense"}</span></td>
+                      <td>{e.category}</td>
+                      <td style={{ color: "var(--color-text-muted)", fontSize: "0.85rem" }}>{e.description ?? "—"}</td>
+                      <td style={{ fontWeight: 600, color: e.type === "INCOME" ? "var(--color-teal-accent)" : "#e07070" }}>
+                        {e.type === "INCOME" ? "+" : "−"}${e.amount.toLocaleString()}
+                      </td>
+                      <td><button onClick={() => deleteEntry(e.id)} className="btn btn--danger btn--sm">✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>No ledger entries yet. Add your first income or expense entry above.</p>
+          )}
+        </div>
+      )}
+
+      {activeSection === "votes" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <button className="btn btn--secondary btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShowVoteForm(v => !v)}>+ Record surplus vote</button>
+
+          {showVoteForm && (
+            <form onSubmit={addVote} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "560px", padding: "1.25rem", background: "var(--color-surface)", borderRadius: "10px", border: "1px solid var(--color-border-strong)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <Field label="Period" hint="e.g. May 2026"><input style={inputStyle} required value={voteForm.periodLabel} onChange={e => setVF("periodLabel", e.target.value)} placeholder="May 2026" /></Field>
+                <Field label="Surplus available ($)"><input type="number" style={inputStyle} required min="0" step="0.01" value={voteForm.surplus} onChange={e => setVF("surplus", e.target.value)} /></Field>
+                <Field label="Decision">
+                  <select style={inputStyle} value={voteForm.decision} onChange={e => setVF("decision", e.target.value)}>
+                    <option value="distribute">Distribute to shareholders</option>
+                    <option value="reinvest">Reinvest in property</option>
+                    <option value="reserve">Hold in reserve</option>
+                    <option value="other">Other (see notes)</option>
+                  </select>
+                </Field>
+                <Field label="Amount distributed ($)"><input type="number" style={inputStyle} min="0" step="0.01" value={voteForm.amountDistributed} onChange={e => setVF("amountDistributed", e.target.value)} placeholder="0" /></Field>
+              </div>
+              <Field label="Notes"><input style={inputStyle} value={voteForm.notes} onChange={e => setVF("notes", e.target.value)} placeholder="What was decided and how the vote went" /></Field>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button type="submit" className="btn btn--primary btn--sm" disabled={addingVote}>{addingVote ? "Saving…" : "Record vote"}</button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowVoteForm(false)}>Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {votes.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {votes.map(v => (
+                <div key={v.id} className="card" style={{ display: "flex", gap: "1rem", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                      <strong style={{ color: "var(--color-limestone)" }}>{v.periodLabel}</strong>
+                      <span className="badge badge--gold">{v.decision}</span>
+                    </div>
+                    <p style={{ fontSize: "0.85rem" }}>Surplus: <strong style={{ color: "var(--color-dome-gold)" }}>${v.surplus.toLocaleString()}</strong> · Distributed: <strong>${v.amountDistributed.toLocaleString()}</strong></p>
+                    {v.notes && <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{v.notes}</p>}
+                  </div>
+                  <button onClick={() => deleteVote(v.id)} className="btn btn--danger btn--sm" style={{ flexShrink: 0 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>No surplus votes recorded yet. After each meeting where the surplus is voted on, record it here.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Documents ───────────────────────────────────────────────────────────
+
+const HOUSING_DOCS = [
+  { slug: "offering-memo", title: "Share Offering Memorandum", desc: "Plain-language document describing the deal to potential shareholders — property, shares, terms, and how to participate." },
+  { slug: "shareholder-agreement", title: "Shareholder Agreement", desc: "The agreement each shareholder signs — rights, voting, transfer rules, exit terms, and dispute resolution." },
+  { slug: "bylaws", title: "Governance & Bylaws", desc: "How the community governs the property — meeting rules, voting thresholds, treasury process, and amendments." },
+  { slug: "treasury-report", title: "Treasury Report", desc: "Open-books financial statement — income, expenses, surplus, and a record of how each vote went." },
+];
+
+function DocumentsTab({ project }: { project: Project }) {
+  const [generating, setGenerating] = useState<string | null>(null);
+  const [content, setContent] = useState<Record<string, string>>({});
+
+  async function generate(slug: string) {
+    setGenerating(slug);
+    const res = await fetch(`/api/housing/documents/${project.id}/${slug}`);
+    if (res.ok) {
+      const data = await res.json();
+      setContent(prev => ({ ...prev, [slug]: data.content }));
+    }
+    setGenerating(null);
+  }
+
+  function download(slug: string, title: string) {
+    const blob = new Blob([content[slug]], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${project.name} — ${title}.md`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <p style={{ maxWidth: "560px" }}>
+        Each document is generated from your project data using AI and formatted in plain language. Fill in the Property, Offering, Shareholders, and Governance tabs first for the best output.
+      </p>
+      {HOUSING_DOCS.map(doc => (
+        <div key={doc.slug} className="card--raised" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div>
+              <p style={{ fontWeight: 700, color: "var(--color-limestone)", marginBottom: "0.25rem" }}>{doc.title}</p>
+              <p style={{ fontSize: "0.85rem" }}>{doc.desc}</p>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+              {content[doc.slug] && (
+                <button className="btn btn--ghost btn--sm" onClick={() => download(doc.slug, doc.title)}>Download .md</button>
+              )}
+              <button
+                className="btn btn--primary btn--sm"
+                onClick={() => generate(doc.slug)}
+                disabled={generating === doc.slug}
+              >
+                {generating === doc.slug ? "Generating…" : content[doc.slug] ? "Regenerate" : "Generate"}
+              </button>
+            </div>
+          </div>
+          {content[doc.slug] && (
+            <div style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+              <pre style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>{content[doc.slug]}</pre>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Workbook Page ───────────────────────────────────────────────────────
+
+export default function ProjectWorkbook({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>("Property");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/housing/projects/${id}`);
+    if (res.status === 401) { router.push("/login"); return; }
+    if (res.status === 404) { router.push("/housing/projects"); return; }
+    if (res.ok) setProject(await res.json());
+    setLoading(false);
+  }, [id, router]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function save(data: Partial<Project>) {
+    const res = await fetch(`/api/housing/projects/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setProject(p => p ? { ...p, ...updated } : p);
+    }
+  }
+
+  if (loading) return <div style={{ padding: "3rem", color: "var(--color-text-muted)" }}>Loading…</div>;
+  if (!project) return null;
+
+  const { totalRaise, publicShares, issuePrice } = dealMath(project);
+  const { net } = treasuryMath(project);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+      {/* Header */}
+      <div>
+        <Link href="/housing/projects" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>&larr; My Projects</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+          <h1 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)" }}>{project.name}</h1>
+          <span className="badge badge--muted">{project.status.charAt(0) + project.status.slice(1).toLowerCase()}</span>
+        </div>
+        {project.address && <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{project.address}</p>}
+
+        {/* Quick stats bar */}
+        <div style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
+          {totalRaise > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Raise: <strong style={{ color: "var(--color-limestone)" }}>${totalRaise.toLocaleString()}</strong></span>}
+          {issuePrice > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Issue price: <strong style={{ color: "var(--color-dome-gold)" }}>${issuePrice.toFixed(2)}</strong></span>}
+          {publicShares > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Public shares: <strong style={{ color: "var(--color-limestone)" }}>{publicShares.toLocaleString()}</strong></span>}
+          <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Treasury: <strong style={{ color: net >= 0 ? "var(--color-teal-accent)" : "#e07070" }}>{net >= 0 ? "+" : ""}${net.toLocaleString()}</strong></span>
+        </div>
+      </div>
+
+      {/* Tab nav */}
+      <div className="tabs">
+        {TABS.map(tab => (
+          <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div>
+        {activeTab === "Property" && <PropertyTab project={project} onSave={save} />}
+        {activeTab === "Offering" && <OfferingTab project={project} onSave={save} />}
+        {activeTab === "Shareholders" && <ShareholdersTab project={project} onRefresh={load} />}
+        {activeTab === "Governance" && <GovernanceTab project={project} onSave={save} />}
+        {activeTab === "Treasury" && <TreasuryTab project={project} onRefresh={load} />}
+        {activeTab === "Documents" && <DocumentsTab project={project} />}
+      </div>
+    </div>
+  );
+}
