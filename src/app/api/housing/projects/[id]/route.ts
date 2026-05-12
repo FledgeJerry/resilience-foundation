@@ -57,6 +57,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (key in body) data[key] = body[key];
     }
 
+    if (data.targetCloseDate && typeof data.targetCloseDate === "string") {
+      data.targetCloseDate = new Date(data.targetCloseDate);
+    }
+
     const project = await prisma.housingProject.update({ where: { id }, data });
     return NextResponse.json(project);
   } catch (err) {
