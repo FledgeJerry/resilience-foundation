@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { HANDBOOK } from "@/lib/handbook-content";
 import type { HandbookField } from "@/lib/handbook-content";
+import ProposalsPanel from "@/components/ProposalsPanel";
 
 type Coop = { id: string; name: string; role: string; isPublic?: boolean; website?: string; contactEmail?: string; phone?: string };
 type Member = { id: string; role: string; user: { id: string; name: string | null; email: string } };
@@ -492,11 +493,39 @@ function HandbookPageInner() {
               </button>
             );
           })}
+          {/* Proposals — special section */}
+          {!isAdminView && coopId && (
+            <button
+              onClick={() => setActiveSection("proposals")}
+              style={{
+                background: activeSection === "proposals" ? "var(--color-surface-raised)" : "transparent",
+                border: activeSection === "proposals" ? "1px solid var(--color-border-strong)" : "1px solid transparent",
+                borderRadius: "6px",
+                padding: "0.5rem 0.75rem",
+                textAlign: "left",
+                cursor: "pointer",
+                width: "100%",
+                marginTop: "0.5rem",
+                borderTop: "1px solid var(--color-border)",
+              }}
+            >
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: activeSection === "proposals" ? "var(--color-dome-gold)" : "var(--color-text-muted)", display: "block" }}>
+                Vote
+              </span>
+              <span style={{ fontSize: "0.8rem", color: activeSection === "proposals" ? "var(--color-limestone)" : "var(--color-text-secondary)", display: "block", lineHeight: 1.3 }}>
+                Proposals
+              </span>
+            </button>
+          )}
         </nav>
       </aside>
 
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0 }}>
+        {activeSection === "proposals" && coopId ? (
+          <ProposalsPanel entityType="COOP" entityId={coopId} />
+        ) : (
+        <>
         <div style={{ marginBottom: "2rem" }}>
           <span className="eyebrow">{section.id}</span>
           <h1 style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>{section.title}</h1>
@@ -615,6 +644,8 @@ function HandbookPageInner() {
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -47,6 +47,8 @@ model User {
   coopMemberships     CoopMember[]
   housingMemberships  HousingMember[]
   businessMemberships BusinessMember[]
+  proposalsCreated    Proposal[]
+  votes               Vote[]
 }
 
 model Coop {
@@ -369,6 +371,65 @@ model BusinessTransaction {
   amount      Float
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// ── Proposals + Voting ───────────────────────────────────────────────────────
+
+enum ProposalEntityType {
+  COOP
+  HOUSING
+}
+
+enum ProposalStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  PASSED
+  FAILED
+  WITHDRAWN
+}
+
+enum VoteChoice {
+  YES
+  NO
+  ABSTAIN
+}
+
+model Proposal {
+  id           String             @id @default(cuid())
+  entityType   ProposalEntityType
+  entityId     String
+  title        String
+  body         String
+  proposedById String
+  status       ProposalStatus     @default(DRAFT)
+  threshold    Float              @default(51)
+  deadline     DateTime?
+
+  offchainYes     Int @default(0)
+  offchainNo      Int @default(0)
+  offchainAbstain Int @default(0)
+
+  proposedBy User   @relation(fields: [proposedById], references: [id])
+  votes      Vote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Vote {
+  id         String     @id @default(cuid())
+  proposalId String
+  userId     String
+  choice     VoteChoice
+  comment    String?
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, userId])
 
   createdAt DateTime @default(now())
 }

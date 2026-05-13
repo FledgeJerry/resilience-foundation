@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ProposalsPanel from "@/components/ProposalsPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ function StatChip({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
-const TABS = ["Property", "Offering", "Shareholders", "Governance", "Treasury", "Documents"] as const;
+const TABS = ["Property", "Offering", "Shareholders", "Governance", "Treasury", "Documents", "Proposals"] as const;
 type Tab = (typeof TABS)[number];
 
 const STATUS_OPTIONS = ["PLANNING", "RAISING", "PURCHASED", "RENOVATING", "RENTING", "SOLD"];
@@ -948,6 +949,7 @@ export default function ProjectWorkbook({ params }: { params: Promise<{ id: stri
         {activeTab === "Governance" && <GovernanceTab project={project} onSave={save} />}
         {activeTab === "Treasury" && <TreasuryTab project={project} onRefresh={load} />}
         {activeTab === "Documents" && <DocumentsTab project={project} />}
+        {activeTab === "Proposals" && <ProposalsPanel entityType="HOUSING" entityId={project.id} />}
       </div>
     </div>
   );
