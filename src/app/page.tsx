@@ -15,7 +15,7 @@ const NODES = [
     num: 2,
     abbr: "HSG",
     name: "Housing Roadmap",
-    desc: "Sunshine House model, rent-to-own, and acquisition guide. Stop paying someone else's mortgage.",
+    desc: "Fledge Fractals — renter-centric community housing where your rent builds real equity shares. Stop paying someone else's mortgage.",
     href: "/housing",
     live: true,
     highlight: true,
@@ -35,7 +35,7 @@ const NODES = [
     name: "Entrepreneurial Journey",
     desc: "Eight stages from idea to co-op. Tools, the Fledge pathway, and peer support at every step.",
     href: "/journey",
-    live: false,
+    live: true,
     highlight: true,
   },
   {
@@ -130,9 +130,9 @@ export default function Home() {
             Every node on this platform is a working tool, not an explainer. You
             can use the Housing Roadmap to find your acquisition pathway today.
             You can start your co-op handbook right now and generate a real
-            business plan. When the Entrepreneurial Journey launches, you&apos;ll
-            be able to track your progress across eight stages and get matched
-            with peer support and Fledge coaching.
+            business plan. The Entrepreneurial Journey is live — track your
+            progress across eight stages and get matched with peer support and
+            Fledge coaching.
           </p>
           <p>
             The value created here stays here. Co-ops buy from co-ops. Community
@@ -234,11 +234,12 @@ export default function Home() {
       <section style={{ textAlign: "center", padding: "2rem 0 3rem" }}>
         <h2 style={{ marginBottom: "1rem" }}>Start where you are.</h2>
         <p style={{ marginBottom: "2rem", maxWidth: "480px", margin: "0 auto 2rem", color: "var(--color-text-secondary)" }}>
-          Two nodes are live right now. Worker Co-op Builder and Housing Roadmap — both free, no account required to explore.
+          Three nodes are live now — free to explore, no account required.
         </p>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/co-op" className="btn btn--primary">Co-op Builder</Link>
-          <Link href="/housing" className="btn btn--secondary">Housing Roadmap</Link>
+          <Link href="/journey" className="btn btn--primary">Entrepreneurial Journey</Link>
+          <Link href="/co-op" className="btn btn--secondary">Co-op Builder</Link>
+          <Link href="/housing" className="btn btn--secondary">Fledge Fractals</Link>
         </div>
       </section>
 

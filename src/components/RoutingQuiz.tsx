@@ -34,14 +34,14 @@ function getResult(urgency: Urgency, location: Location): NodeResult {
 
   const results: Record<NonNullable<typeof urgency>, NodeResult> = {
     housing: {
-      name: "Housing Roadmap",
-      desc: "Start with the Sunshine House model — community-owned housing where your monthly payment builds your equity, not your landlord's. Use the pathway finder to see which model fits you.",
+      name: "Fledge Fractals",
+      desc: "Community-owned housing where your rent builds real equity shares through amortization math — the same equity you'd earn paying a 30-year mortgage. Use the pathway finder to see which model fits you.",
       href: "/housing",
       live: true,
       callout: lansing
-        ? "The Fledge is based in Lansing and works directly with Sunshine House candidates here."
+        ? "The Fledge is based in Lansing and works directly with Fledge Fractals candidates here."
         : other
-        ? "The Sunshine House model is designed to be replicated anywhere. Check Replicate It for the full playbook."
+        ? "The Fledge Fractals model is designed to be replicated anywhere. Check Replicate It for the full playbook."
         : undefined,
     },
     income: {
@@ -66,9 +66,9 @@ function getResult(urgency: Urgency, location: Location): NodeResult {
     },
     starting: {
       name: "Entrepreneurial Journey",
-      desc: "Eight stages from idea to co-op: Idea, Know Your Ground, Find Your People, Build Structure, Test Small, Get Support, Sustain It, Grow the Ecosystem. Tools and peer support at every step.",
+      desc: "Eight stages from idea to co-op — live now. Track your business across Idea, Know Your Ground, Find Your People, Build Structure, Test Small, Get Support, Sustain It, and Grow the Ecosystem. At Stage 4 you can fork into the traditional path or the co-op path.",
       href: "/journey",
-      live: false,
+      live: true,
       callout: lansing
         ? "The Fledge runs a 90-day cohort program for early-stage co-ops in Lansing."
         : other
