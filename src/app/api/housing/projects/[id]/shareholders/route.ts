@@ -40,13 +40,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const { name, email, phone, shareCount, amountPaid, isTreasury, notes } = await req.json();
-    if (!name?.trim() || !shareCount) {
-      return NextResponse.json({ error: "name and shareCount required" }, { status: 400 });
+    const { name, email, phone, shareCount, amountPaid, isTreasury, notes, isRenter, monthlyRentPaid, moveInDate } = await req.json();
+    if (!name?.trim()) {
+      return NextResponse.json({ error: "name required" }, { status: 400 });
     }
 
     const shareholder = await prisma.housingShareHolder.create({
-      data: { projectId, name: name.trim(), email, phone, shareCount: Number(shareCount), amountPaid: Number(amountPaid ?? 0), isTreasury: Boolean(isTreasury), notes },
+      data: {
+        projectId,
+        name: name.trim(),
+        email,
+        phone,
+        shareCount: Number(shareCount ?? 0),
+        amountPaid: Number(amountPaid ?? 0),
+        isTreasury: Boolean(isTreasury),
+        notes,
+        isRenter: Boolean(isRenter),
+        monthlyRentPaid: monthlyRentPaid != null ? Number(monthlyRentPaid) : undefined,
+        moveInDate: moveInDate ? new Date(moveInDate) : undefined,
+      },
     });
 
     return NextResponse.json(shareholder, { status: 201 });
@@ -78,6 +90,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(data.shareCount !== undefined && { shareCount: Number(data.shareCount) }),
         ...(data.amountPaid !== undefined && { amountPaid: Number(data.amountPaid) }),
         ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.isRenter !== undefined && { isRenter: Boolean(data.isRenter) }),
+        ...(data.monthlyRentPaid !== undefined && { monthlyRentPaid: data.monthlyRentPaid != null ? Number(data.monthlyRentPaid) : null }),
+        ...(data.moveInDate !== undefined && { moveInDate: data.moveInDate ? new Date(data.moveInDate) : null }),
+        ...(data.equityBalance !== undefined && { equityBalance: Number(data.equityBalance) }),
       },
     });
 

@@ -51,6 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       "targetCloseDate", "notes", "totalShares", "treasuryReservePct",
       "quorumPct", "simpleThreshold", "superThreshold", "meetingCadence", "disputeProcess",
       "monthlyRent", "propertyTax", "insurance", "maintenanceReserve", "rainyDayPct",
+      "mortgageInterestRate", "mortgageLoanTerm",
     ];
     const data: Record<string, unknown> = {};
     for (const key of allowed) {

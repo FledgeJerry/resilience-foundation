@@ -9,6 +9,7 @@ import Link from "next/link";
 type Shareholder = {
   id: string; name: string; email: string | null; phone: string | null;
   shareCount: number; amountPaid: number; isTreasury: boolean; notes: string | null;
+  isRenter: boolean; monthlyRentPaid: number | null; moveInDate: string | null; equityBalance: number;
 };
 type TreasuryEntry = {
   id: string; date: string; type: "INCOME" | "EXPENSE";
@@ -27,6 +28,7 @@ type Project = {
   meetingCadence: string; disputeProcess: string;
   monthlyRent: number | null; propertyTax: number | null; insurance: number | null;
   maintenanceReserve: number | null; rainyDayPct: number;
+  mortgageInterestRate: number; mortgageLoanTerm: number;
   shareholders: Shareholder[];
   treasuryEntries: TreasuryEntry[];
   treasuryVotes: TreasuryVote[];
@@ -50,6 +52,45 @@ function treasuryMath(p: Project) {
   const totalExpense = entries.filter(e => e.type === "EXPENSE").reduce((s, e) => s + e.amount, 0);
   const net = totalIncome - totalExpense;
   return { totalIncome, totalExpense, net };
+}
+
+// Cumulative principal paid through month N on a given principal/rate/term
+function amortCumulativePrincipal(principal: number, annualRatePct: number, termYears: number, throughMonth: number): number {
+  const r = annualRatePct / 100 / 12;
+  const n = termYears * 12;
+  if (r === 0 || n === 0) return principal * (throughMonth / n);
+  const M = principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  let balance = principal;
+  let cum = 0;
+  const months = Math.min(throughMonth, n);
+  for (let i = 0; i < months; i++) {
+    const interest = balance * r;
+    const pmt = Math.min(M, balance + interest);
+    const principalPmt = pmt - interest;
+    cum += principalPmt;
+    balance = Math.max(0, balance - principalPmt);
+  }
+  return cum;
+}
+
+// Given a renter's moveInDate, calculate elapsed months and earned equity
+function calcRenterEquity(renter: Shareholder, project: Project) {
+  if (!renter.isRenter || !renter.moveInDate || !project.postRenoValue) return null;
+  const principal = project.postRenoValue;
+  const rate = project.mortgageInterestRate;
+  const term = project.mortgageLoanTerm;
+  const shareValue = principal / project.totalShares;
+  const moveIn = new Date(renter.moveInDate);
+  const now = new Date();
+  const elapsedMonths = Math.max(0, (now.getFullYear() - moveIn.getFullYear()) * 12 + (now.getMonth() - moveIn.getMonth()));
+  const cumulativePrincipal = amortCumulativePrincipal(principal, rate, term, elapsedMonths);
+  const totalSharesEarnable = Math.floor(cumulativePrincipal / shareValue);
+  const sharesAlreadyHeld = renter.shareCount;
+  const newSharesDue = Math.max(0, totalSharesEarnable - sharesAlreadyHeld);
+  const newEquityBalance = cumulativePrincipal - totalSharesEarnable * shareValue + renter.equityBalance;
+  // Next month principal for display
+  const nextMonthPrincipal = amortCumulativePrincipal(principal, rate, term, elapsedMonths + 1) - cumulativePrincipal;
+  return { elapsedMonths, cumulativePrincipal, totalSharesEarnable, sharesAlreadyHeld, newSharesDue, newEquityBalance, shareValue, nextMonthPrincipal };
 }
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
@@ -154,6 +195,8 @@ function OfferingTab({ project, onSave }: { project: Project; onSave: (data: Par
   const [form, setForm] = useState({
     totalShares: project.totalShares.toString(),
     treasuryReservePct: project.treasuryReservePct.toString(),
+    mortgageInterestRate: project.mortgageInterestRate.toString(),
+    mortgageLoanTerm: project.mortgageLoanTerm.toString(),
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -169,7 +212,11 @@ function OfferingTab({ project, onSave }: { project: Project; onSave: (data: Par
 
   async function save() {
     setSaving(true);
-    await onSave({ totalShares, treasuryReservePct: reservePct });
+    await onSave({
+      totalShares, treasuryReservePct: reservePct,
+      mortgageInterestRate: parseFloat(form.mortgageInterestRate) || 7,
+      mortgageLoanTerm: parseInt(form.mortgageLoanTerm) || 30,
+    });
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
   }
 
@@ -179,9 +226,27 @@ function OfferingTab({ project, onSave }: { project: Project; onSave: (data: Par
         <Field label="Total shares to issue" hint="Post-renovation, each share = post-reno value ÷ total shares.">
           <input type="number" style={inputStyle} value={form.totalShares} onChange={e => setForm(f => ({ ...f, totalShares: e.target.value }))} />
         </Field>
-        <Field label="Treasury reserve (%)" hint="Shares held by the treasury — not sold at launch. Sold later to new members or for future fundraising.">
+        <Field label="Treasury reserve (%)" hint="Shares held by the treasury — reserved for renter equity transfers, future sales, and liquidity.">
           <input type="number" min="0" max="99" style={inputStyle} value={form.treasuryReservePct} onChange={e => setForm(f => ({ ...f, treasuryReservePct: e.target.value }))} />
         </Field>
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1.25rem" }}>
+          <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: "0.75rem" }}>Renter equity parameters</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <Field label="Reference mortgage rate (%/yr)" hint="Used to calculate monthly principal → shares earned.">
+              <input type="number" min="0" max="25" step="0.25" style={inputStyle} value={form.mortgageInterestRate} onChange={e => setForm(f => ({ ...f, mortgageInterestRate: e.target.value }))} />
+            </Field>
+            <Field label="Loan term (years)">
+              <input type="number" min="1" max="50" style={inputStyle} value={form.mortgageLoanTerm} onChange={e => setForm(f => ({ ...f, mortgageLoanTerm: e.target.value }))} />
+            </Field>
+          </div>
+          {project.postRenoValue && (
+            <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.5rem" }}>
+              Month 1 renter equity: <strong style={{ color: "var(--color-teal-accent)" }}>
+                ${amortCumulativePrincipal(project.postRenoValue, parseFloat(form.mortgageInterestRate) || 7, parseInt(form.mortgageLoanTerm) || 30, 1).toFixed(2)}
+              </strong> principal → 1 share every ${perShareValue > 0 ? `$${perShareValue.toFixed(2)}` : "—"} accumulated.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Share split bar */}
@@ -218,33 +283,55 @@ function OfferingTab({ project, onSave }: { project: Project; onSave: (data: Par
 
 // ─── Tab: Shareholders ────────────────────────────────────────────────────────
 
+type AddForm = {
+  name: string; email: string; phone: string; shareCount: string;
+  amountPaid: string; notes: string; isTreasury: boolean;
+  isRenter: boolean; monthlyRentPaid: string; moveInDate: string;
+};
+
 function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
   const [shareholders, setShareholders] = useState<Shareholder[]>(project.shareholders);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false });
+  const blank: AddForm = { name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false, isRenter: false, monthlyRentPaid: "", moveInDate: "" };
+  const [form, setForm] = useState<AddForm>(blank);
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editPaid, setEditPaid] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const { publicShares, treasuryShares, issuePrice, perShareValue } = dealMath(project);
-  const sold = shareholders.filter(s => !s.isTreasury).reduce((s, h) => s + h.shareCount, 0);
+  const sold = shareholders.filter(s => !s.isTreasury && !s.isRenter).reduce((s, h) => s + h.shareCount, 0);
+  const renterShares = shareholders.filter(s => s.isRenter).reduce((s, h) => s + h.shareCount, 0);
   const treasurySold = shareholders.filter(s => s.isTreasury).reduce((s, h) => s + h.shareCount, 0);
-  const totalRaised = shareholders.reduce((s, h) => s + h.amountPaid, 0);
-  const pct = publicShares > 0 ? Math.min(100, (sold / publicShares) * 100) : 0;
+  const totalRaised = shareholders.filter(s => !s.isRenter).reduce((s, h) => s + h.amountPaid, 0);
+  const pct = publicShares > 0 ? Math.min(100, ((sold + renterShares) / publicShares) * 100) : 0;
+
+  const setF = (k: keyof AddForm, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
 
   async function addShareholder(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name || !form.shareCount) return;
+    if (!form.name) return;
     setAdding(true);
+    const body: Record<string, unknown> = {
+      name: form.name, email: form.email || null, phone: form.phone || null,
+      notes: form.notes || null, isTreasury: form.isTreasury, isRenter: form.isRenter,
+    };
+    if (form.isRenter) {
+      body.shareCount = 0;
+      body.amountPaid = 0;
+      body.monthlyRentPaid = form.monthlyRentPaid ? parseFloat(form.monthlyRentPaid) : null;
+      body.moveInDate = form.moveInDate || null;
+    } else {
+      body.shareCount = parseInt(form.shareCount || "0");
+      body.amountPaid = parseFloat(form.amountPaid || "0");
+    }
     const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, shareCount: parseInt(form.shareCount), amountPaid: parseFloat(form.amountPaid || "0") }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     if (res.ok) {
       const s = await res.json();
       setShareholders(prev => [...prev, s]);
-      setForm({ name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false });
+      setForm(blank);
       setShowForm(false);
       onRefresh();
     }
@@ -253,8 +340,7 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
 
   async function updatePaid(id: string) {
     const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shareholderId: id, amountPaid: parseFloat(editPaid) }),
     });
     if (res.ok) {
@@ -264,26 +350,44 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
     }
   }
 
+  // Process equity: calculate shares due based on amortization, transfer from treasury
+  async function processEquity(shareholder: Shareholder) {
+    const eq = calcRenterEquity(shareholder, project);
+    if (!eq || eq.newSharesDue === 0) return;
+    setProcessingId(shareholder.id);
+    // Update shareholder: add earned shares, update equity balance
+    const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        shareholderId: shareholder.id,
+        shareCount: shareholder.shareCount + eq.newSharesDue,
+        equityBalance: eq.newEquityBalance,
+      }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setShareholders(prev => prev.map(s => s.id === shareholder.id ? updated : s));
+    }
+    setProcessingId(null);
+  }
+
   async function remove(id: string) {
     if (!confirm("Remove this shareholder?")) return;
     const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shareholderId: id }),
     });
     if (res.ok) { setShareholders(prev => prev.filter(s => s.id !== id)); onRefresh(); }
   }
 
-  const setF = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
       {/* Summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.75rem" }}>
-        <StatChip label="Public shares sold" value={`${sold} / ${publicShares}`} />
+        <StatChip label="Investor shares" value={`${sold} / ${publicShares}`} />
+        <StatChip label="Renter equity shares" value={renterShares.toLocaleString()} accent={renterShares > 0} />
         <StatChip label="Treasury shares" value={`${treasurySold} / ${treasuryShares}`} />
-        <StatChip label="Total raised" value={`$${totalRaised.toLocaleString()}`} accent />
-        <StatChip label="Raise progress" value={`${pct.toFixed(0)}%`} accent={pct >= 100} />
+        <StatChip label="Cash raised" value={`$${totalRaised.toLocaleString()}`} accent />
       </div>
 
       {/* Progress bar */}
@@ -291,35 +395,53 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
         <div style={{ height: "8px", background: "var(--color-border-strong)", borderRadius: "4px", overflow: "hidden" }}>
           <div style={{ width: `${pct}%`, height: "100%", background: pct >= 100 ? "var(--color-teal-accent)" : "var(--color-dome-gold)", transition: "width 0.3s" }} />
         </div>
-        <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.3rem" }}>Public raise: {pct.toFixed(0)}% funded</p>
+        <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.3rem" }}>Public shares allocated (investors + renters): {pct.toFixed(0)}%</p>
       </div>
 
       {/* Add form */}
       <div>
-        <button className="btn btn--secondary btn--sm" onClick={() => setShowForm(v => !v)}>+ Add shareholder</button>
+        <button className="btn btn--secondary btn--sm" onClick={() => setShowForm(v => !v)}>+ Add shareholder / renter</button>
         {showForm && (
-          <form onSubmit={addShareholder} style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.25rem", maxWidth: "560px" }}>
+          <form onSubmit={addShareholder} style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.25rem", padding: "1.25rem", background: "var(--color-surface-raised)", borderRadius: "8px", border: "1px solid var(--color-border-strong)", maxWidth: "580px" }}>
+            <Field label="Type">
+              <select style={inputStyle} value={form.isRenter ? "renter" : form.isTreasury ? "treasury" : "investor"}
+                onChange={e => {
+                  const v = e.target.value;
+                  setForm(f => ({ ...f, isRenter: v === "renter", isTreasury: v === "treasury" }));
+                }}>
+                <option value="investor">Investor — buying shares at issue price</option>
+                <option value="renter">Renter — earns shares through rent payments</option>
+                <option value="treasury">Treasury reserve</option>
+              </select>
+            </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <Field label="Name *"><input style={inputStyle} required value={form.name} onChange={e => setF("name", e.target.value)} placeholder="Full name" /></Field>
               <Field label="Email"><input type="email" style={inputStyle} value={form.email} onChange={e => setF("email", e.target.value)} placeholder="optional" /></Field>
               <Field label="Phone"><input style={inputStyle} value={form.phone} onChange={e => setF("phone", e.target.value)} placeholder="optional" /></Field>
-              <Field label="Shares *" hint={issuePrice > 0 ? `$${issuePrice.toFixed(2)} each` : undefined}>
-                <input type="number" style={inputStyle} required min="1" value={form.shareCount} onChange={e => setF("shareCount", e.target.value)} placeholder="e.g. 5" />
-              </Field>
-              <Field label="Amount paid ($)">
-                <input type="number" style={inputStyle} min="0" value={form.amountPaid} onChange={e => setF("amountPaid", e.target.value)} placeholder="0" />
-              </Field>
-              <Field label="Type">
-                <select style={inputStyle} value={form.isTreasury ? "treasury" : "public"} onChange={e => setF("isTreasury", e.target.value === "treasury")}>
-                  <option value="public">Public shareholder</option>
-                  <option value="treasury">Treasury reserve</option>
-                </select>
-              </Field>
+              {form.isRenter ? (
+                <>
+                  <Field label="Monthly rent ($)" hint="What this renter actually pays">
+                    <input type="number" min="0" style={inputStyle} value={form.monthlyRentPaid} onChange={e => setF("monthlyRentPaid", e.target.value)} placeholder="e.g. 900" />
+                  </Field>
+                  <Field label="Move-in date" hint="Equity accrual starts from this date">
+                    <input type="date" style={inputStyle} value={form.moveInDate} onChange={e => setF("moveInDate", e.target.value)} />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Shares" hint={issuePrice > 0 ? `$${issuePrice.toFixed(2)} each` : undefined}>
+                    <input type="number" style={inputStyle} min="0" value={form.shareCount} onChange={e => setF("shareCount", e.target.value)} placeholder="e.g. 10" />
+                  </Field>
+                  <Field label="Amount paid ($)">
+                    <input type="number" style={inputStyle} min="0" value={form.amountPaid} onChange={e => setF("amountPaid", e.target.value)} placeholder="0" />
+                  </Field>
+                </>
+              )}
             </div>
             <Field label="Notes"><input style={inputStyle} value={form.notes} onChange={e => setF("notes", e.target.value)} placeholder="Optional notes" /></Field>
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button type="submit" className="btn btn--primary btn--sm" disabled={adding}>{adding ? "Adding…" : "Add"}</button>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowForm(false)}>Cancel</button>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowForm(false); setForm(blank); }}>Cancel</button>
             </div>
           </form>
         )}
@@ -331,38 +453,76 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
           <table className="ll-table">
             <thead>
               <tr>
-                <th>Name</th><th>Type</th><th>Shares</th>
-                <th>Value (day 1)</th><th>Amount paid</th><th>Paid?</th><th></th>
+                <th>Name</th><th>Type</th><th>Shares</th><th>Equity value</th><th>Paid / rent</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
               {shareholders.map(s => {
                 const shareVal = perShareValue > 0 ? s.shareCount * perShareValue : 0;
-                const due = issuePrice > 0 ? s.shareCount * issuePrice : 0;
-                const paid = s.amountPaid >= due && due > 0;
+                const due = issuePrice > 0 && !s.isRenter ? s.shareCount * issuePrice : 0;
+                const paid = !s.isRenter && s.amountPaid >= due && due > 0;
+                const eq = s.isRenter ? calcRenterEquity(s, project) : null;
+
                 return (
                   <tr key={s.id}>
                     <td>
                       <p style={{ color: "var(--color-limestone)", fontWeight: 600, fontSize: "0.9rem" }}>{s.name}</p>
                       {s.email && <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{s.email}</p>}
-                    </td>
-                    <td><span className={`badge ${s.isTreasury ? "badge--blue" : "badge--gold"}`}>{s.isTreasury ? "Treasury" : "Public"}</span></td>
-                    <td style={{ color: "var(--color-limestone)" }}>{s.shareCount.toLocaleString()}</td>
-                    <td style={{ color: shareVal > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)" }}>{shareVal > 0 ? `$${shareVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</td>
-                    <td>
-                      {editId === s.id ? (
-                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-                          <input type="number" style={{ ...inputStyle, width: "90px", padding: "0.3rem 0.5rem", fontSize: "0.85rem" }} value={editPaid} onChange={e => setEditPaid(e.target.value)} />
-                          <button className="btn btn--primary btn--sm" onClick={() => updatePaid(s.id)}>Save</button>
-                          <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>✕</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => { setEditId(s.id); setEditPaid(s.amountPaid.toString()); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-limestone)", fontSize: "0.9rem" }}>
-                          ${s.amountPaid.toLocaleString()}
-                        </button>
+                      {s.isRenter && s.monthlyRentPaid && (
+                        <p style={{ fontSize: "0.72rem", color: "var(--color-teal-accent)" }}>${s.monthlyRentPaid}/mo rent</p>
                       )}
                     </td>
-                    <td><span className={`badge ${paid ? "badge--teal" : "badge--muted"}`}>{paid ? "Paid" : "Pending"}</span></td>
+                    <td>
+                      <span className={`badge ${s.isTreasury ? "badge--blue" : s.isRenter ? "badge--teal" : "badge--gold"}`}>
+                        {s.isTreasury ? "Treasury" : s.isRenter ? "Renter" : "Investor"}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ color: "var(--color-limestone)" }}>{s.shareCount.toLocaleString()}</span>
+                      {eq && eq.newSharesDue > 0 && (
+                        <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", color: "var(--color-dome-gold)" }}>+{eq.newSharesDue} due</span>
+                      )}
+                    </td>
+                    <td style={{ color: shareVal > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)" }}>
+                      {shareVal > 0 ? `$${shareVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
+                    </td>
+                    <td>
+                      {s.isRenter ? (
+                        <div style={{ fontSize: "0.8rem" }}>
+                          {s.moveInDate && <p style={{ color: "var(--color-text-muted)" }}>Since {new Date(s.moveInDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>}
+                          {eq && <p style={{ color: "var(--color-text-secondary)" }}>${eq.cumulativePrincipal.toFixed(0)} cumulative principal</p>}
+                        </div>
+                      ) : (
+                        editId === s.id ? (
+                          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                            <input type="number" style={{ ...inputStyle, width: "90px", padding: "0.3rem 0.5rem", fontSize: "0.85rem" }} value={editPaid} onChange={e => setEditPaid(e.target.value)} />
+                            <button className="btn btn--primary btn--sm" onClick={() => updatePaid(s.id)}>Save</button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditId(s.id); setEditPaid(s.amountPaid.toString()); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-limestone)", fontSize: "0.9rem" }}>
+                            ${s.amountPaid.toLocaleString()}
+                          </button>
+                        )
+                      )}
+                    </td>
+                    <td>
+                      {s.isRenter ? (
+                        eq && eq.newSharesDue > 0 ? (
+                          <button
+                            className="btn btn--primary btn--sm"
+                            disabled={processingId === s.id}
+                            onClick={() => processEquity(s)}
+                          >
+                            {processingId === s.id ? "…" : `Transfer ${eq.newSharesDue} shares`}
+                          </button>
+                        ) : (
+                          <span className="badge badge--muted">{eq ? "Up to date" : "No move-in date"}</span>
+                        )
+                      ) : (
+                        <span className={`badge ${paid ? "badge--teal" : "badge--muted"}`}>{paid ? "Paid" : "Pending"}</span>
+                      )}
+                    </td>
                     <td>
                       <button onClick={() => remove(s.id)} className="btn btn--danger btn--sm">Remove</button>
                     </td>

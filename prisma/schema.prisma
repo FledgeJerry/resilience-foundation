@@ -156,6 +156,10 @@ model HousingProject {
   meetingCadence  String @default("Monthly")
   disputeProcess  String @default("Peer mediation first, then community mediation")
 
+  // Renter equity calculation parameters
+  mortgageInterestRate Float @default(7.0)
+  mortgageLoanTerm     Int   @default(30)
+
   // Treasury baseline (monthly estimates)
   monthlyRent        Float?
   propertyTax        Float?
@@ -195,6 +199,12 @@ model HousingShareHolder {
   amountPaid Float   @default(0)
   isTreasury Boolean @default(false)
   notes      String?
+
+  // Renter equity fields
+  isRenter        Boolean   @default(false)
+  monthlyRentPaid Float?
+  moveInDate      DateTime?
+  equityBalance   Float     @default(0)
 
   project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
