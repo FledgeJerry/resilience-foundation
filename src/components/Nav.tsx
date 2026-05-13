@@ -12,6 +12,7 @@ export default function Nav() {
     <>
       <li><Link href="/" onClick={() => setOpen(false)}>Home</Link></li>
       <li><Link href="/co-op" onClick={() => setOpen(false)}>Co-op Builder</Link></li>
+      <li><Link href="/journey" onClick={() => setOpen(false)}>Journey</Link></li>
       <li><Link href="/housing" onClick={() => setOpen(false)}>Housing</Link></li>
       <li><Link href="/about" onClick={() => setOpen(false)}>About</Link></li>
       <li><Link href="/directory" onClick={() => setOpen(false)}>Directory</Link></li>
@@ -19,6 +20,7 @@ export default function Nav() {
         <>
           <li><Link href="/handbook" onClick={() => setOpen(false)}>My Handbook</Link></li>
           <li><Link href="/documents" onClick={() => setOpen(false)}>Documents</Link></li>
+          <li><Link href="/journey/businesses" onClick={() => setOpen(false)}>My Journey</Link></li>
           <li><Link href="/housing/projects" onClick={() => setOpen(false)}>My Housing</Link></li>
           <li><Link href="/profile" onClick={() => setOpen(false)}>Profile</Link></li>
           {session.user.role === "ADMIN" && (

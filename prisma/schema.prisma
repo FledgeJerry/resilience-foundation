@@ -42,10 +42,11 @@ model User {
 
   emailSubscribed Boolean  @default(false)
 
-  accounts          Account[]
-  sessions          Session[]
-  coopMemberships   CoopMember[]
-  housingMemberships HousingMember[]
+  accounts            Account[]
+  sessions            Session[]
+  coopMemberships     CoopMember[]
+  housingMemberships  HousingMember[]
+  businessMemberships BusinessMember[]
 }
 
 model Coop {
@@ -224,6 +225,140 @@ model TreasuryVote {
   notes       String?
 
   project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// ── Entrepreneurial Journey ───────────────────────────────────────────────────
+
+enum BusinessType {
+  UNDECIDED
+  TRADITIONAL
+  COOP
+}
+
+enum BusinessStage {
+  IDEA
+  KNOW_GROUND
+  FIND_PEOPLE
+  BUILD_STRUCTURE
+  TEST_SMALL
+  GET_SUPPORT
+  SUSTAIN
+  GROW
+}
+
+enum BusinessMemberRole {
+  OWNER
+  EDITOR
+}
+
+enum ContactType {
+  LEAD
+  CUSTOMER
+  ADVISOR
+  PARTNER
+  INVESTOR
+  TEAM
+  OTHER
+}
+
+enum DealStage {
+  PROSPECT
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+model Business {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  type        BusinessType  @default(UNDECIDED)
+  stage       BusinessStage @default(IDEA)
+  industry    String?
+  city        String?
+  state       String?
+  website     String?
+  notes       String?
+
+  problemStatement String?
+  targetMarket     String?
+  uniqueValue      String?
+
+  members      BusinessMember[]
+  contacts     Contact[]
+  transactions BusinessTransaction[]
+  deals        Deal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BusinessMember {
+  id         String             @id @default(cuid())
+  businessId String
+  userId     String
+  role       BusinessMemberRole @default(EDITOR)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+}
+
+model Contact {
+  id         String      @id @default(cuid())
+  businessId String
+  type       ContactType @default(LEAD)
+  name       String
+  email      String?
+  phone      String?
+  company    String?
+  notes      String?
+  tags       String[]
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  deals    Deal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Deal {
+  id         String    @id @default(cuid())
+  businessId String
+  contactId  String?
+  title      String
+  value      Float?
+  stage      DealStage @default(PROSPECT)
+  notes      String?
+  closeDate  DateTime?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BusinessTransaction {
+  id          String          @id @default(cuid())
+  businessId  String
+  date        DateTime
+  type        TransactionType
+  category    String
+  description String?
+  amount      Float
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
