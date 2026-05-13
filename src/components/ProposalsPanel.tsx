@@ -40,6 +40,7 @@ export default function ProposalsPanel({ entityType, entityId }: Props) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", body: "", threshold: "51", deadline: "" });
 
   useEffect(() => {
@@ -54,16 +55,23 @@ export default function ProposalsPanel({ entityType, entityId }: Props) {
     e.preventDefault();
     if (!form.title.trim() || !form.body.trim()) return;
     setCreating(true);
-    const res = await fetch("/api/proposals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entityType, entityId, ...form, threshold: Number(form.threshold) }),
-    });
-    if (res.ok) {
-      const p = await res.json();
-      setProposals(prev => [{ ...p, _count: { votes: 0 } }, ...prev]);
-      setForm({ title: "", body: "", threshold: "51", deadline: "" });
-      setShowForm(false);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityType, entityId, title: form.title, body: form.body, threshold: Number(form.threshold), deadline: form.deadline || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data?.error ?? `Error ${res.status}`);
+      } else {
+        setProposals(prev => [{ ...data, _count: { votes: 0 }, offchainYes: 0, offchainNo: 0, offchainAbstain: 0 }, ...prev]);
+        setForm({ title: "", body: "", threshold: "51", deadline: "" });
+        setShowForm(false);
+      }
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Network error");
     }
     setCreating(false);
   }
@@ -144,11 +152,16 @@ export default function ProposalsPanel({ entityType, entityId }: Props) {
               <input type="date" style={inputSt} value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} />
             </div>
           </div>
+          {createError && (
+            <p style={{ fontSize: "0.82rem", color: "#e07070", background: "rgba(192,57,43,0.1)", border: "1px solid rgba(192,57,43,0.25)", borderRadius: "6px", padding: "0.5rem 0.75rem" }}>
+              {createError}
+            </p>
+          )}
           <div style={{ display: "flex", gap: "0.75rem" }}>
             <button type="submit" className="btn btn--primary btn--sm" disabled={creating}>
               {creating ? "Creating…" : "Save as draft"}
             </button>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowForm(false)}>Cancel</button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowForm(false); setCreateError(null); }}>Cancel</button>
           </div>
           <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
             Proposals start as drafts. You publish when ready — that&apos;s when members can vote.
