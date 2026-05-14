@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, use } from "react";
+import { useCallback, useEffect, useState, use, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProposalsPanel from "@/components/ProposalsPanel";
@@ -10,7 +10,10 @@ import ProposalsPanel from "@/components/ProposalsPanel";
 type Shareholder = {
   id: string; name: string; email: string | null; phone: string | null;
   shareCount: number; amountPaid: number; isTreasury: boolean; notes: string | null;
-  isRenter: boolean; monthlyRentPaid: number | null; moveInDate: string | null; equityBalance: number;
+  isRenter: boolean; monthlyRentPaid: number | null; moveInDate: string | null;
+  moveOutDate: string | null; equityBalance: number;
+  securityDeposit: number | null; leaseEndDate: string | null;
+  occupantCount: number | null; emergencyContactName: string | null; emergencyContactPhone: string | null;
 };
 type TreasuryEntry = {
   id: string; date: string; type: "INCOME" | "EXPENSE";
@@ -82,15 +85,16 @@ function calcRenterEquity(renter: Shareholder, project: Project) {
   const term = project.mortgageLoanTerm;
   const shareValue = principal / project.totalShares;
   const moveIn = new Date(renter.moveInDate);
-  const now = new Date();
-  const elapsedMonths = Math.max(0, (now.getFullYear() - moveIn.getFullYear()) * 12 + (now.getMonth() - moveIn.getMonth()));
+  const cutoff = renter.moveOutDate ? new Date(renter.moveOutDate) : new Date();
+  const elapsedMonths = Math.max(0, (cutoff.getFullYear() - moveIn.getFullYear()) * 12 + (cutoff.getMonth() - moveIn.getMonth()));
   const cumulativePrincipal = amortCumulativePrincipal(principal, rate, term, elapsedMonths);
   const totalSharesEarnable = Math.floor(cumulativePrincipal / shareValue);
   const sharesAlreadyHeld = renter.shareCount;
   const newSharesDue = Math.max(0, totalSharesEarnable - sharesAlreadyHeld);
   const newEquityBalance = cumulativePrincipal - totalSharesEarnable * shareValue + renter.equityBalance;
-  // Next month principal for display
-  const nextMonthPrincipal = amortCumulativePrincipal(principal, rate, term, elapsedMonths + 1) - cumulativePrincipal;
+  const nextMonthPrincipal = renter.moveOutDate
+    ? 0
+    : amortCumulativePrincipal(principal, rate, term, elapsedMonths + 1) - cumulativePrincipal;
   return { elapsedMonths, cumulativePrincipal, totalSharesEarnable, sharesAlreadyHeld, newSharesDue, newEquityBalance, shareValue, nextMonthPrincipal };
 }
 
@@ -288,16 +292,28 @@ type AddForm = {
   name: string; email: string; phone: string; shareCount: string;
   amountPaid: string; notes: string; isTreasury: boolean;
   isRenter: boolean; monthlyRentPaid: string; moveInDate: string;
+  securityDeposit: string; leaseEndDate: string; occupantCount: string;
+  emergencyContactName: string; emergencyContactPhone: string;
+};
+
+type EditForm = {
+  name: string; email: string; phone: string; notes: string;
+  shareCount: string; amountPaid: string;
+  monthlyRentPaid: string; moveInDate: string; moveOutDate: string;
+  securityDeposit: string; leaseEndDate: string; occupantCount: string;
+  emergencyContactName: string; emergencyContactPhone: string;
 };
 
 function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
   const [shareholders, setShareholders] = useState<Shareholder[]>(project.shareholders);
-  const blank: AddForm = { name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false, isRenter: false, monthlyRentPaid: "", moveInDate: "" };
+  const blank: AddForm = { name: "", email: "", phone: "", shareCount: "", amountPaid: "", notes: "", isTreasury: false, isRenter: false, monthlyRentPaid: "", moveInDate: "", securityDeposit: "", leaseEndDate: "", occupantCount: "", emergencyContactName: "", emergencyContactPhone: "" };
   const [form, setForm] = useState<AddForm>(blank);
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editPaid, setEditPaid] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ name: "", email: "", phone: "", notes: "", shareCount: "", amountPaid: "", monthlyRentPaid: "", moveInDate: "", moveOutDate: "", securityDeposit: "", leaseEndDate: "", occupantCount: "", emergencyContactName: "", emergencyContactPhone: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const { publicShares, treasuryShares, issuePrice, perShareValue } = dealMath(project);
@@ -322,6 +338,11 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
       body.amountPaid = 0;
       body.monthlyRentPaid = form.monthlyRentPaid ? parseFloat(form.monthlyRentPaid) : null;
       body.moveInDate = form.moveInDate || null;
+      body.securityDeposit = form.securityDeposit ? parseFloat(form.securityDeposit) : null;
+      body.leaseEndDate = form.leaseEndDate || null;
+      body.occupantCount = form.occupantCount ? parseInt(form.occupantCount) : null;
+      body.emergencyContactName = form.emergencyContactName || null;
+      body.emergencyContactPhone = form.emergencyContactPhone || null;
     } else {
       body.shareCount = parseInt(form.shareCount || "0");
       body.amountPaid = parseFloat(form.amountPaid || "0");
@@ -339,16 +360,63 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
     setAdding(false);
   }
 
-  async function updatePaid(id: string) {
+  function startEdit(s: Shareholder) {
+    setEditingId(s.id);
+    setEditForm({
+      name: s.name,
+      email: s.email ?? "",
+      phone: s.phone ?? "",
+      notes: s.notes ?? "",
+      shareCount: s.shareCount.toString(),
+      amountPaid: s.amountPaid.toString(),
+      monthlyRentPaid: s.monthlyRentPaid?.toString() ?? "",
+      moveInDate: s.moveInDate ? s.moveInDate.slice(0, 10) : "",
+      moveOutDate: s.moveOutDate ? s.moveOutDate.slice(0, 10) : "",
+      securityDeposit: s.securityDeposit?.toString() ?? "",
+      leaseEndDate: s.leaseEndDate ? s.leaseEndDate.slice(0, 10) : "",
+      occupantCount: s.occupantCount?.toString() ?? "",
+      emergencyContactName: s.emergencyContactName ?? "",
+      emergencyContactPhone: s.emergencyContactPhone ?? "",
+    });
+  }
+
+  async function saveEdit(id: string) {
+    const s = shareholders.find(sh => sh.id === id);
+    if (!s) return;
+    setSavingEdit(true);
+    const body: Record<string, unknown> = {
+      shareholderId: id,
+      name: editForm.name.trim(),
+      email: editForm.email || null,
+      phone: editForm.phone || null,
+      notes: editForm.notes || null,
+    };
+    if (s.isRenter) {
+      body.monthlyRentPaid = editForm.monthlyRentPaid ? parseFloat(editForm.monthlyRentPaid) : null;
+      body.moveInDate = editForm.moveInDate || null;
+      body.moveOutDate = editForm.moveOutDate || null;
+      body.securityDeposit = editForm.securityDeposit ? parseFloat(editForm.securityDeposit) : null;
+      body.leaseEndDate = editForm.leaseEndDate || null;
+      body.occupantCount = editForm.occupantCount ? parseInt(editForm.occupantCount) : null;
+      body.emergencyContactName = editForm.emergencyContactName || null;
+      body.emergencyContactPhone = editForm.emergencyContactPhone || null;
+    } else {
+      body.shareCount = parseInt(editForm.shareCount || "0");
+      body.amountPaid = parseFloat(editForm.amountPaid || "0");
+    }
+    setEditError(null);
     const res = await fetch(`/api/housing/projects/${project.id}/shareholders`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shareholderId: id, amountPaid: parseFloat(editPaid) }),
+      body: JSON.stringify(body),
     });
+    const data = await res.json();
     if (res.ok) {
-      const updated = await res.json();
-      setShareholders(prev => prev.map(s => s.id === id ? updated : s));
-      setEditId(null);
+      setShareholders(prev => prev.map(sh => sh.id === id ? data : sh));
+      setEditingId(null);
+    } else {
+      setEditError(data?.error ?? `Error ${res.status}`);
     }
+    setSavingEdit(false);
   }
 
   // Process equity: calculate shares due based on amortization, transfer from treasury
@@ -427,6 +495,21 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
                   <Field label="Move-in date" hint="Equity accrual starts from this date">
                     <input type="date" style={inputStyle} value={form.moveInDate} onChange={e => setF("moveInDate", e.target.value)} />
                   </Field>
+                  <Field label="Security deposit ($)">
+                    <input type="number" min="0" style={inputStyle} value={form.securityDeposit} onChange={e => setF("securityDeposit", e.target.value)} placeholder="e.g. 900" />
+                  </Field>
+                  <Field label="Lease end date" hint="Leave blank for month-to-month">
+                    <input type="date" style={inputStyle} value={form.leaseEndDate} onChange={e => setF("leaseEndDate", e.target.value)} />
+                  </Field>
+                  <Field label="# of occupants">
+                    <input type="number" min="1" style={inputStyle} value={form.occupantCount} onChange={e => setF("occupantCount", e.target.value)} placeholder="1" />
+                  </Field>
+                  <Field label="Emergency contact name">
+                    <input style={inputStyle} value={form.emergencyContactName} onChange={e => setF("emergencyContactName", e.target.value)} placeholder="optional" />
+                  </Field>
+                  <Field label="Emergency contact phone">
+                    <input style={inputStyle} value={form.emergencyContactPhone} onChange={e => setF("emergencyContactPhone", e.target.value)} placeholder="optional" />
+                  </Field>
                 </>
               ) : (
                 <>
@@ -463,71 +546,135 @@ function ShareholdersTab({ project, onRefresh }: { project: Project; onRefresh: 
                 const due = issuePrice > 0 && !s.isRenter ? s.shareCount * issuePrice : 0;
                 const paid = !s.isRenter && s.amountPaid >= due && due > 0;
                 const eq = s.isRenter ? calcRenterEquity(s, project) : null;
+                const isFormerRenter = s.isRenter && !!s.moveOutDate;
 
                 return (
-                  <tr key={s.id}>
-                    <td>
-                      <p style={{ color: "var(--color-limestone)", fontWeight: 600, fontSize: "0.9rem" }}>{s.name}</p>
-                      {s.email && <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{s.email}</p>}
-                      {s.isRenter && s.monthlyRentPaid && (
-                        <p style={{ fontSize: "0.72rem", color: "var(--color-teal-accent)" }}>${s.monthlyRentPaid}/mo rent</p>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`badge ${s.isTreasury ? "badge--blue" : s.isRenter ? "badge--teal" : "badge--gold"}`}>
-                        {s.isTreasury ? "Treasury" : s.isRenter ? "Renter" : "Investor"}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ color: "var(--color-limestone)" }}>{s.shareCount.toLocaleString()}</span>
-                      {eq && eq.newSharesDue > 0 && (
-                        <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", color: "var(--color-dome-gold)" }}>+{eq.newSharesDue} due</span>
-                      )}
-                    </td>
-                    <td style={{ color: shareVal > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)" }}>
-                      {shareVal > 0 ? `$${shareVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
-                    </td>
-                    <td>
-                      {s.isRenter ? (
-                        <div style={{ fontSize: "0.8rem" }}>
-                          {s.moveInDate && <p style={{ color: "var(--color-text-muted)" }}>Since {new Date(s.moveInDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>}
-                          {eq && <p style={{ color: "var(--color-text-secondary)" }}>${eq.cumulativePrincipal.toFixed(0)} cumulative principal</p>}
-                        </div>
-                      ) : (
-                        editId === s.id ? (
-                          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-                            <input type="number" style={{ ...inputStyle, width: "90px", padding: "0.3rem 0.5rem", fontSize: "0.85rem" }} value={editPaid} onChange={e => setEditPaid(e.target.value)} />
-                            <button className="btn btn--primary btn--sm" onClick={() => updatePaid(s.id)}>Save</button>
-                            <button className="btn btn--ghost btn--sm" onClick={() => setEditId(null)}>✕</button>
+                  <Fragment key={s.id}>
+                    <tr>
+                      <td>
+                        <p style={{ color: "var(--color-limestone)", fontWeight: 600, fontSize: "0.9rem" }}>{s.name}</p>
+                        {s.email && <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{s.email}</p>}
+                        {s.isRenter && s.monthlyRentPaid && !isFormerRenter && (
+                          <p style={{ fontSize: "0.72rem", color: "var(--color-teal-accent)" }}>${s.monthlyRentPaid}/mo rent</p>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${s.isTreasury ? "badge--blue" : isFormerRenter ? "badge--muted" : s.isRenter ? "badge--teal" : "badge--gold"}`}>
+                          {s.isTreasury ? "Treasury" : isFormerRenter ? "Former renter" : s.isRenter ? "Renter" : "Investor"}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ color: "var(--color-limestone)" }}>{s.shareCount.toLocaleString()}</span>
+                        {eq && eq.newSharesDue > 0 && (
+                          <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", color: "var(--color-dome-gold)" }}>+{eq.newSharesDue} due</span>
+                        )}
+                      </td>
+                      <td style={{ color: shareVal > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)" }}>
+                        {shareVal > 0 ? `$${shareVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
+                      </td>
+                      <td>
+                        {s.isRenter ? (
+                          <div style={{ fontSize: "0.8rem" }}>
+                            {s.moveInDate && <p style={{ color: "var(--color-text-muted)" }}>In: {new Date(s.moveInDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>}
+                            {s.moveOutDate && <p style={{ color: "var(--color-dome-gold)" }}>Out: {new Date(s.moveOutDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>}
+                            {eq && !isFormerRenter && <p style={{ color: "var(--color-text-secondary)" }}>${eq.cumulativePrincipal.toFixed(0)} principal</p>}
                           </div>
                         ) : (
-                          <button onClick={() => { setEditId(s.id); setEditPaid(s.amountPaid.toString()); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-limestone)", fontSize: "0.9rem" }}>
-                            ${s.amountPaid.toLocaleString()}
-                          </button>
-                        )
-                      )}
-                    </td>
-                    <td>
-                      {s.isRenter ? (
-                        eq && eq.newSharesDue > 0 ? (
-                          <button
-                            className="btn btn--primary btn--sm"
-                            disabled={processingId === s.id}
-                            onClick={() => processEquity(s)}
-                          >
-                            {processingId === s.id ? "…" : `Transfer ${eq.newSharesDue} shares`}
-                          </button>
+                          <span style={{ color: "var(--color-limestone)", fontSize: "0.9rem" }}>${s.amountPaid.toLocaleString()}</span>
+                        )}
+                      </td>
+                      <td>
+                        {s.isRenter ? (
+                          eq && eq.newSharesDue > 0 ? (
+                            <button className="btn btn--primary btn--sm" disabled={processingId === s.id} onClick={() => processEquity(s)}>
+                              {processingId === s.id ? "…" : `Transfer ${eq.newSharesDue} shares`}
+                            </button>
+                          ) : (
+                            <span className="badge badge--muted">{isFormerRenter ? "Settled" : eq ? "Up to date" : "No move-in date"}</span>
+                          )
                         ) : (
-                          <span className="badge badge--muted">{eq ? "Up to date" : "No move-in date"}</span>
-                        )
-                      ) : (
-                        <span className={`badge ${paid ? "badge--teal" : "badge--muted"}`}>{paid ? "Paid" : "Pending"}</span>
-                      )}
-                    </td>
-                    <td>
-                      <button onClick={() => remove(s.id)} className="btn btn--danger btn--sm">Remove</button>
-                    </td>
-                  </tr>
+                          <span className={`badge ${paid ? "badge--teal" : "badge--muted"}`}>{paid ? "Paid" : "Pending"}</span>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.4rem" }}>
+                          <button
+                            onClick={() => editingId === s.id ? setEditingId(null) : startEdit(s)}
+                            className="btn btn--ghost btn--sm"
+                          >
+                            {editingId === s.id ? "Cancel" : "Edit"}
+                          </button>
+                          <button onClick={() => remove(s.id)} className="btn btn--danger btn--sm">Remove</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {editingId === s.id && (
+                      <tr>
+                        <td colSpan={7} style={{ padding: "1rem 1.25rem", background: "var(--color-surface)", borderTop: "none" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", maxWidth: "640px" }}>
+                            <Field label="Name">
+                              <input style={inputStyle} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                            </Field>
+                            <Field label="Email">
+                              <input type="email" style={inputStyle} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} placeholder="optional" />
+                            </Field>
+                            <Field label="Phone">
+                              <input style={inputStyle} value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="optional" />
+                            </Field>
+                            {s.isRenter ? (
+                              <>
+                                <Field label="Monthly rent ($)">
+                                  <input type="number" style={inputStyle} value={editForm.monthlyRentPaid} onChange={e => setEditForm(f => ({ ...f, monthlyRentPaid: e.target.value }))} />
+                                </Field>
+                                <Field label="Move-in date">
+                                  <input type="date" style={inputStyle} value={editForm.moveInDate} onChange={e => setEditForm(f => ({ ...f, moveInDate: e.target.value }))} />
+                                </Field>
+                                <Field label="Move-out date" hint="Set when renter leaves — equity freezes at this date">
+                                  <input type="date" style={inputStyle} value={editForm.moveOutDate} onChange={e => setEditForm(f => ({ ...f, moveOutDate: e.target.value }))} />
+                                </Field>
+                                <Field label="Security deposit ($)">
+                                  <input type="number" min="0" style={inputStyle} value={editForm.securityDeposit} onChange={e => setEditForm(f => ({ ...f, securityDeposit: e.target.value }))} />
+                                </Field>
+                                <Field label="Lease end date" hint="Blank = month-to-month">
+                                  <input type="date" style={inputStyle} value={editForm.leaseEndDate} onChange={e => setEditForm(f => ({ ...f, leaseEndDate: e.target.value }))} />
+                                </Field>
+                                <Field label="# of occupants">
+                                  <input type="number" min="1" style={inputStyle} value={editForm.occupantCount} onChange={e => setEditForm(f => ({ ...f, occupantCount: e.target.value }))} />
+                                </Field>
+                                <Field label="Emergency contact name">
+                                  <input style={inputStyle} value={editForm.emergencyContactName} onChange={e => setEditForm(f => ({ ...f, emergencyContactName: e.target.value }))} placeholder="optional" />
+                                </Field>
+                                <Field label="Emergency contact phone">
+                                  <input style={inputStyle} value={editForm.emergencyContactPhone} onChange={e => setEditForm(f => ({ ...f, emergencyContactPhone: e.target.value }))} placeholder="optional" />
+                                </Field>
+                              </>
+                            ) : (
+                              <>
+                                <Field label="Shares">
+                                  <input type="number" style={inputStyle} value={editForm.shareCount} onChange={e => setEditForm(f => ({ ...f, shareCount: e.target.value }))} />
+                                </Field>
+                                <Field label="Amount paid ($)">
+                                  <input type="number" style={inputStyle} value={editForm.amountPaid} onChange={e => setEditForm(f => ({ ...f, amountPaid: e.target.value }))} />
+                                </Field>
+                              </>
+                            )}
+                            <div style={{ gridColumn: "1 / -1" }}>
+                              <Field label="Notes">
+                                <input style={inputStyle} value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="optional" />
+                              </Field>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem", alignItems: "center" }}>
+                            <button className="btn btn--primary btn--sm" disabled={savingEdit} onClick={() => saveEdit(s.id)}>
+                              {savingEdit ? "Saving…" : "Save"}
+                            </button>
+                            <button className="btn btn--ghost btn--sm" onClick={() => setEditingId(null)}>Cancel</button>
+                            {editError && <span style={{ fontSize: "0.78rem", color: "#e07070" }}>{editError}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -821,6 +968,8 @@ const HOUSING_DOCS = [
 function DocumentsTab({ project }: { project: Project }) {
   const [generating, setGenerating] = useState<string | null>(null);
   const [content, setContent] = useState<Record<string, string>>({});
+  const [generatingLease, setGeneratingLease] = useState<string | null>(null);
+  const [leaseContent, setLeaseContent] = useState<Record<string, string>>({});
 
   async function generate(slug: string) {
     setGenerating(slug);
@@ -832,6 +981,16 @@ function DocumentsTab({ project }: { project: Project }) {
     setGenerating(null);
   }
 
+  async function generateLease(shareholderId: string) {
+    setGeneratingLease(shareholderId);
+    const res = await fetch(`/api/housing/documents/${project.id}/lease?shareholderId=${shareholderId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setLeaseContent(prev => ({ ...prev, [shareholderId]: data.content }));
+    }
+    setGeneratingLease(null);
+  }
+
   function download(slug: string, title: string) {
     const blob = new Blob([content[slug]], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -839,6 +998,16 @@ function DocumentsTab({ project }: { project: Project }) {
     a.href = url; a.download = `${project.name} — ${title}.md`; a.click();
     URL.revokeObjectURL(url);
   }
+
+  function downloadLease(shareholderId: string, name: string) {
+    const blob = new Blob([leaseContent[shareholderId]], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${project.name} — Lease — ${name}.md`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const renters = project.shareholders.filter(s => s.isRenter);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -872,6 +1041,47 @@ function DocumentsTab({ project }: { project: Project }) {
           )}
         </div>
       ))}
+
+      {/* Lease Agreements */}
+      {renters.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1.25rem" }}>
+            <p style={{ fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>Lease Agreements</p>
+            <p style={{ fontSize: "0.85rem", maxWidth: "560px" }}>Generated per renter from their lease terms, the property details, and the cooperative governance structure.</p>
+          </div>
+          {renters.map(renter => (
+            <div key={renter.id} className="card--raised" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
+                <div>
+                  <p style={{ fontWeight: 700, color: "var(--color-limestone)", marginBottom: "0.25rem" }}>Lease — {renter.name}</p>
+                  <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
+                    {renter.monthlyRentPaid ? `$${renter.monthlyRentPaid}/mo` : "Rent TBD"}
+                    {renter.moveInDate && ` · From ${new Date(renter.moveInDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
+                    {renter.leaseEndDate ? ` · Through ${new Date(renter.leaseEndDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}` : " · Month-to-month"}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                  {leaseContent[renter.id] && (
+                    <button className="btn btn--ghost btn--sm" onClick={() => downloadLease(renter.id, renter.name)}>Download .md</button>
+                  )}
+                  <button
+                    className="btn btn--primary btn--sm"
+                    onClick={() => generateLease(renter.id)}
+                    disabled={generatingLease === renter.id}
+                  >
+                    {generatingLease === renter.id ? "Generating…" : leaseContent[renter.id] ? "Regenerate" : "Generate Lease"}
+                  </button>
+                </div>
+              </div>
+              {leaseContent[renter.id] && (
+                <div style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+                  <pre style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>{leaseContent[renter.id]}</pre>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -206,7 +206,15 @@ model HousingShareHolder {
   isRenter        Boolean   @default(false)
   monthlyRentPaid Float?
   moveInDate      DateTime?
+  moveOutDate     DateTime?
   equityBalance   Float     @default(0)
+
+  // Lease fields
+  securityDeposit      Float?
+  leaseEndDate         DateTime?
+  occupantCount        Int?
+  emergencyContactName  String?
+  emergencyContactPhone String?
 
   project HousingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 

@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const { name, email, phone, shareCount, amountPaid, isTreasury, notes, isRenter, monthlyRentPaid, moveInDate } = await req.json();
+    const { name, email, phone, shareCount, amountPaid, isTreasury, notes, isRenter, monthlyRentPaid, moveInDate, securityDeposit, leaseEndDate, occupantCount, emergencyContactName, emergencyContactPhone } = await req.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "name required" }, { status: 400 });
     }
@@ -58,6 +58,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         isRenter: Boolean(isRenter),
         monthlyRentPaid: monthlyRentPaid != null ? Number(monthlyRentPaid) : undefined,
         moveInDate: moveInDate ? new Date(moveInDate) : undefined,
+        securityDeposit: securityDeposit != null ? Number(securityDeposit) : undefined,
+        leaseEndDate: leaseEndDate ? new Date(leaseEndDate) : undefined,
+        occupantCount: occupantCount != null ? Number(occupantCount) : undefined,
+        emergencyContactName: emergencyContactName || undefined,
+        emergencyContactPhone: emergencyContactPhone || undefined,
       },
     });
 
@@ -93,7 +98,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(data.isRenter !== undefined && { isRenter: Boolean(data.isRenter) }),
         ...(data.monthlyRentPaid !== undefined && { monthlyRentPaid: data.monthlyRentPaid != null ? Number(data.monthlyRentPaid) : null }),
         ...(data.moveInDate !== undefined && { moveInDate: data.moveInDate ? new Date(data.moveInDate) : null }),
+        ...(data.moveOutDate !== undefined && { moveOutDate: data.moveOutDate ? new Date(data.moveOutDate) : null }),
         ...(data.equityBalance !== undefined && { equityBalance: Number(data.equityBalance) }),
+        ...(data.securityDeposit !== undefined && { securityDeposit: data.securityDeposit != null ? Number(data.securityDeposit) : null }),
+        ...(data.leaseEndDate !== undefined && { leaseEndDate: data.leaseEndDate ? new Date(data.leaseEndDate) : null }),
+        ...(data.occupantCount !== undefined && { occupantCount: data.occupantCount != null ? Number(data.occupantCount) : null }),
+        ...(data.emergencyContactName !== undefined && { emergencyContactName: data.emergencyContactName || null }),
+        ...(data.emergencyContactPhone !== undefined && { emergencyContactPhone: data.emergencyContactPhone || null }),
       },
     });
 
