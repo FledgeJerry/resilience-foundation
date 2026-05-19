@@ -98,14 +98,16 @@ export async function GET() {
     .map(([quarter, count]) => ({ quarter, count }))
     .sort((a, b) => a.quarter.localeCompare(b.quarter));
 
-  // Formations by year (from LARA date)
-  const laraYearCounts = new Map<string, number>();
+  // Formations by quarter (from LARA date)
+  const laraQuarterCounts = new Map<string, number>();
   for (const b of businesses) {
     if (!b.laraDate) continue;
-    const year = new Date(b.laraDate).getFullYear().toString();
-    laraYearCounts.set(year, (laraYearCounts.get(year) ?? 0) + 1);
+    const d = new Date(b.laraDate);
+    const q = Math.floor(d.getMonth() / 3) + 1;
+    const key = `${d.getFullYear()} Q${q}`;
+    laraQuarterCounts.set(key, (laraQuarterCounts.get(key) ?? 0) + 1);
   }
-  const byLaraYear = Array.from(laraYearCounts.entries())
+  const byLaraYear = Array.from(laraQuarterCounts.entries())
     .map(([year, count]) => ({ year, count }))
     .sort((a, b) => a.year.localeCompare(b.year));
   const withLaraDate = businesses.filter((b) => b.laraDate != null).length;

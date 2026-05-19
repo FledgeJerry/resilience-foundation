@@ -519,7 +519,7 @@ function StatsPanel({ total }: { total: number }) {
         {/* LARA formations by year */}
         {byLaraYear.length > 0 ? (
           <div className="card" style={{ padding: "1.25rem" }}>
-            <SectionHead>Formations by year (LARA date)</SectionHead>
+            <SectionHead>Formations by quarter (LARA date)</SectionHead>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
               {byLaraYear.map(({ year, count }) => (
                 <BarRow key={year} label={year} value={count} max={Math.max(...byLaraYear.map(y => y.count), 1)} color="var(--color-teal-accent)" />
@@ -529,7 +529,7 @@ function StatsPanel({ total }: { total: number }) {
           </div>
         ) : (
           <div className="card" style={{ padding: "1.25rem" }}>
-            <SectionHead>Formations by year (LARA date)</SectionHead>
+            <SectionHead>Formations by quarter (LARA date)</SectionHead>
             <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>No LARA dates recorded yet. Add them via the edit drawer on each entrepreneur.</p>
           </div>
         )}
