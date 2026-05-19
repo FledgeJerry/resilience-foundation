@@ -10,7 +10,17 @@ export async function POST(req: Request) {
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
+
   if (existing) {
+    // Allow imported (no-password) users to claim their account by registering
+    if (existing.isImported && !existing.passwordHash) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: { name: name || existing.name, passwordHash, isImported: false },
+      });
+      return NextResponse.json({ id: updated.id, email: updated.email }, { status: 200 });
+    }
     return NextResponse.json({ error: "Email already registered" }, { status: 409 });
   }
 

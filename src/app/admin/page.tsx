@@ -41,10 +41,15 @@ export default function AdminPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      <div>
-        <span className="eyebrow">Administration</span>
-        <h1>Users</h1>
-        <p style={{ marginTop: "0.25rem" }}>{users.length} registered</p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+        <div>
+          <span className="eyebrow">Administration</span>
+          <h1>Users</h1>
+          <p style={{ marginTop: "0.25rem" }}>{users.length} registered</p>
+        </div>
+        <Link href="/admin/cohort" className="btn btn--secondary" style={{ fontSize: "0.85rem" }}>
+          Entrepreneur Cohort →
+        </Link>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>

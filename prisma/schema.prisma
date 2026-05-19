@@ -40,6 +40,8 @@ model User {
   workedAtCoop    String?
   wouldConvert    String?
 
+  phone           String?
+  isImported      Boolean  @default(false)
   emailSubscribed Boolean  @default(false)
 
   accounts            Account[]
@@ -312,6 +314,21 @@ model Business {
   problemStatement String?
   targetMarket     String?
   uniqueValue      String?
+
+  // Cohort / LEAP fields
+  phone           String?
+  county          String?
+  formationType   String?
+  naicsCode       String?
+  currentFte      Int?
+  plannedFte      Int?
+  annualRevenue   Float?
+  isMinorityOwned Boolean  @default(false)
+  isWomanOwned    Boolean  @default(false)
+  isVeteranOwned  Boolean  @default(false)
+  leapStatus      String?
+  leapSubmittedAt DateTime?
+  isAdminCreated  Boolean  @default(false)
 
   members      BusinessMember[]
   contacts     Contact[]
