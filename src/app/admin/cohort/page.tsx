@@ -539,6 +539,8 @@ export default function CohortPage() {
   const [selected, setSelected] = useState<Entry | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [stageSaving, setStageSaving] = useState<Record<string, boolean>>({});
+  const [sortCol, setSortCol] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const load = useCallback((query = q, stage = filterStage, industry = filterIndustry) => {
     const params = new URLSearchParams();
@@ -569,6 +571,33 @@ export default function CohortPage() {
   }
 
   const industries = Array.from(new Set(entries.map((e) => e.industry).filter(Boolean))).sort() as string[];
+
+  function toggleSort(col: string) {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+
+  function sortVal(e: Entry): string | number | null {
+    switch (sortCol) {
+      case "name":     return e.name.toLowerCase();
+      case "owner":    return (e.members[0]?.user.name ?? "").toLowerCase();
+      case "email":    return (e.members[0]?.user.email ?? "").toLowerCase();
+      case "stage":    return STAGES.indexOf(e.stage);
+      case "industry": return (e.industry ?? "").toLowerCase();
+      case "county":   return (e.county ?? e.city ?? "").toLowerCase();
+      case "revenue":  return e.annualRevenue ?? -1;
+      case "fte":      return e.currentFte ?? -1;
+      case "leap":     return (e.leapStatus ?? "").toLowerCase();
+      default:         return null;
+    }
+  }
+
+  const sortedEntries = [...entries].sort((a, b) => {
+    const av = sortVal(a), bv = sortVal(b);
+    if (av === null || bv === null) return 0;
+    const cmp = typeof av === "number" ? av - (bv as number) : (av as string).localeCompare(bv as string);
+    return sortDir === "asc" ? cmp : -cmp;
+  });
 
   if (status === "loading" || loading) return <div style={{ padding: "3rem", color: "var(--color-text-muted)" }}>Loading cohort…</div>;
 
@@ -649,21 +678,30 @@ export default function CohortPage() {
         <table className="ll-table" style={{ minWidth: "860px" }}>
           <thead>
             <tr>
-              <th>Business / Entrepreneur</th>
-              <th>Contact</th>
-              <th>Stage</th>
-              <th>Industry</th>
-              <th>Location</th>
-              <th>Revenue</th>
-              <th>FTEs</th>
-              <th>LEAP</th>
+              {([
+                ["name",     "Business / Entrepreneur"],
+                ["email",    "Contact"],
+                ["stage",    "Stage"],
+                ["industry", "Industry"],
+                ["county",   "Location"],
+                ["revenue",  "Revenue"],
+                ["fte",      "FTEs"],
+                ["leap",     "LEAP"],
+              ] as [string, string][]).map(([col, label]) => (
+                <th key={col} onClick={() => toggleSort(col)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
+                  {label}{" "}
+                  <span style={{ fontSize: "0.65rem", color: sortCol === col ? "var(--color-dome-gold)" : "var(--color-text-muted)", opacity: sortCol === col ? 1 : 0.5 }}>
+                    {sortCol === col ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {entries.length === 0 && (
+            {sortedEntries.length === 0 && (
               <tr><td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>No entries found</td></tr>
             )}
-            {entries.map((e) => {
+            {sortedEntries.map((e) => {
               const owner = e.members[0]?.user;
               return (
                 <tr key={e.id} onClick={() => setSelected(e)} style={{ cursor: "pointer" }}>
