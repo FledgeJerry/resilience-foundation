@@ -44,6 +44,45 @@ export async function GET(req: Request) {
   return NextResponse.json(businesses);
 }
 
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { ownerName, ownerEmail, ownerPhone, businessName, ...bizFields } = await req.json();
+  if (!ownerEmail || !businessName) {
+    return NextResponse.json({ error: "Email and business name required" }, { status: 400 });
+  }
+
+  // Find or create user
+  let user = await prisma.user.findUnique({ where: { email: ownerEmail } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: { name: ownerName || ownerEmail.split("@")[0], email: ownerEmail, phone: ownerPhone || null, isImported: true },
+    });
+  }
+
+  const business = await prisma.business.create({
+    data: {
+      name: businessName,
+      isAdminCreated: true,
+      ...bizFields,
+      members: { create: { userId: user.id, role: "OWNER" } },
+    },
+    include: {
+      members: {
+        where: { role: "OWNER" },
+        include: { user: { select: { id: true, name: true, email: true, phone: true, createdAt: true } } },
+        take: 1,
+      },
+      _count: { select: { contacts: true, deals: true, planEntries: true } },
+    },
+  });
+
+  return NextResponse.json(business, { status: 201 });
+}
+
 export async function PATCH(req: Request) {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") {
