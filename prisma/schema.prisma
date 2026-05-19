@@ -319,6 +319,8 @@ model Business {
   phone           String?
   county          String?
   formationType   String?
+  laraId          String?
+  laraDate        DateTime?
   naicsCode       String?
   currentFte      Int?
   plannedFte      Int?

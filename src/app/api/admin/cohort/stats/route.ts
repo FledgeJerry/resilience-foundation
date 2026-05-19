@@ -18,6 +18,7 @@ export async function GET() {
       state: true,
       leapStatus: true,
       formationType: true,
+      laraDate: true,
       leapSubmittedAt: true,
       currentFte: true,
       plannedFte: true,
@@ -97,6 +98,18 @@ export async function GET() {
     .map(([quarter, count]) => ({ quarter, count }))
     .sort((a, b) => a.quarter.localeCompare(b.quarter));
 
+  // Formations by year (from LARA date)
+  const laraYearCounts = new Map<string, number>();
+  for (const b of businesses) {
+    if (!b.laraDate) continue;
+    const year = new Date(b.laraDate).getFullYear().toString();
+    laraYearCounts.set(year, (laraYearCounts.get(year) ?? 0) + 1);
+  }
+  const byLaraYear = Array.from(laraYearCounts.entries())
+    .map(([year, count]) => ({ year, count }))
+    .sort((a, b) => a.year.localeCompare(b.year));
+  const withLaraDate = businesses.filter((b) => b.laraDate != null).length;
+
   // FTE
   const withCurrentFte = businesses.filter((b) => b.currentFte != null);
   const withPlannedFte = businesses.filter((b) => b.plannedFte != null);
@@ -130,6 +143,8 @@ export async function GET() {
     byCounty,
     byLeapStatus,
     byFormationType,
+    byLaraYear,
+    withLaraDate,
     byQuarter,
     fte: {
       totalCurrent: totalCurrentFte,

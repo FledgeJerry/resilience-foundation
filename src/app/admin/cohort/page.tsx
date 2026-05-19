@@ -25,7 +25,7 @@ type Contact = { id: string; type: string; name: string; email: string | null; p
 type Entry = {
   id: string; name: string; stage: string; industry: string | null;
   city: string | null; state: string | null; county: string | null;
-  website: string | null; formationType: string | null; naicsCode: string | null;
+  website: string | null; formationType: string | null; laraId: string | null; laraDate: string | null; naicsCode: string | null;
   currentFte: number | null; plannedFte: number | null; annualRevenue: number | null;
   isMinorityOwned: boolean; isWomanOwned: boolean; isVeteranOwned: boolean;
   leapStatus: string | null; leapSubmittedAt: string | null; notes: string | null;
@@ -177,6 +177,8 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         county: entry.county,
         website: entry.website,
         formationType: entry.formationType,
+        laraId: entry.laraId,
+        laraDate: entry.laraDate || null,
         naicsCode: entry.naicsCode,
         currentFte: entry.currentFte,
         plannedFte: entry.plannedFte,
@@ -257,6 +259,8 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
               </Field>
               <Field label="Industry"><input style={inpSm} value={entry.industry ?? ""} onChange={e => set("industry", e.target.value)} /></Field>
               <Field label="Formation type"><input style={inpSm} value={entry.formationType ?? ""} onChange={e => set("formationType", e.target.value)} placeholder="LLC, Sole Prop…" /></Field>
+              <Field label="LARA ID"><input style={inpSm} value={entry.laraId ?? ""} onChange={e => set("laraId", e.target.value)} placeholder="B12345678" /></Field>
+              <Field label="LARA date"><input style={inpSm} type="date" value={entry.laraDate ? entry.laraDate.slice(0, 10) : ""} onChange={e => set("laraDate", e.target.value || null)} /></Field>
               <Field label="City"><input style={inpSm} value={entry.city ?? ""} onChange={e => set("city", e.target.value)} /></Field>
               <Field label="State"><input style={inpSm} value={entry.state ?? ""} onChange={e => set("state", e.target.value)} /></Field>
               <Field label="County"><input style={inpSm} value={entry.county ?? ""} onChange={e => set("county", e.target.value)} /></Field>
@@ -349,6 +353,8 @@ type CohortStats = {
   byCounty: { county: string; count: number }[];
   byLeapStatus: { status: string; count: number }[];
   byFormationType: { type: string; count: number }[];
+  byLaraYear: { year: string; count: number }[];
+  withLaraDate: number;
   byQuarter: { quarter: string; count: number }[];
   fte: { totalCurrent: number; totalPlanned: number; withCurrentFte: number; withPlannedFte: number };
   revenue: { withRevenue: number; avg: number; median: number; buckets: { label: string; count: number }[] };
@@ -396,7 +402,7 @@ function StatsPanel({ total }: { total: number }) {
 
   if (!stats) return <div style={{ padding: "3rem", color: "var(--color-text-muted)" }}>Loading stats…</div>;
 
-  const { demographics, byStage, byIndustry, byCounty, byLeapStatus, byFormationType, byQuarter, fte, revenue } = stats;
+  const { demographics, byStage, byIndustry, byCounty, byLeapStatus, byFormationType, byLaraYear, withLaraDate, byQuarter, fte, revenue } = stats;
   const STAGE_ORDER = ["IDEA", "KNOW_GROUND", "FIND_PEOPLE", "BUILD_STRUCTURE", "TEST_SMALL", "GET_SUPPORT", "SUSTAIN", "GROW"];
   const stagesSorted = STAGE_ORDER.map(s => byStage.find(b => b.stage === s) ?? { stage: s, count: 0 });
   const maxStage = Math.max(...stagesSorted.map(s => s.count), 1);
@@ -464,11 +470,14 @@ function StatsPanel({ total }: { total: number }) {
 
         {/* Formation type */}
         <div className="card" style={{ padding: "1.25rem" }}>
-          <SectionHead>Business formation</SectionHead>
+          <SectionHead>Formation type (LARA)</SectionHead>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
             {byFormationType.map(({ type, count }) => (
               <BarRow key={type} label={type} value={count} max={maxForm} color="var(--color-teal-accent)" />
             ))}
+            <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
+              {total - byFormationType.reduce((s, f) => s + f.count, 0)} with no formation type recorded
+            </p>
           </div>
         </div>
 
@@ -506,6 +515,24 @@ function StatsPanel({ total }: { total: number }) {
             ))}
           </div>
         </div>
+
+        {/* LARA formations by year */}
+        {byLaraYear.length > 0 ? (
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <SectionHead>Formations by year (LARA date)</SectionHead>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {byLaraYear.map(({ year, count }) => (
+                <BarRow key={year} label={year} value={count} max={Math.max(...byLaraYear.map(y => y.count), 1)} color="var(--color-teal-accent)" />
+              ))}
+              <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{withLaraDate} of {total} have a LARA date recorded</p>
+            </div>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <SectionHead>Formations by year (LARA date)</SectionHead>
+            <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>No LARA dates recorded yet. Add them via the edit drawer on each entrepreneur.</p>
+          </div>
+        )}
 
         {/* Submissions by quarter */}
         {byQuarter.length > 0 && (

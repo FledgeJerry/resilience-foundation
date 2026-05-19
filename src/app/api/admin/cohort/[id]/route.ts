@@ -35,11 +35,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
 
   // Separate user fields from business fields
-  const { ownerName, ownerPhone, ...bizFields } = body;
+  const { ownerName, ownerPhone, laraDate, ...bizFields } = body;
 
   const business = await prisma.business.update({
     where: { id },
-    data: bizFields,
+    data: {
+      ...bizFields,
+      ...(laraDate !== undefined ? { laraDate: laraDate ? new Date(laraDate) : null } : {}),
+    },
     include: {
       members: {
         where: { role: "OWNER" },
