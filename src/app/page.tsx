@@ -153,7 +153,7 @@ export default function Home() {
         <span className="eyebrow">The eight nodes</span>
         <h2 style={{ marginBottom: "0.5rem" }}>Eight paths. One platform.</h2>
         <p style={{ marginBottom: "2.5rem", maxWidth: "560px" }}>
-          Each node is a self-contained module — you can enter at any point. Two
+          Each node is a self-contained module — you can enter at any point. Three
           are live now; the rest are in active development.
         </p>
         <div style={{
@@ -207,24 +207,20 @@ export default function Home() {
               <p style={{ fontSize: "0.875rem", flex: 1 }}>{desc}</p>
 
               {/* CTA */}
-              {live ? (
-                <Link
-                  href={href}
-                  style={{
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    color: highlight ? "var(--color-dome-gold)" : "var(--color-river-blue)",
-                    textDecoration: "none",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  Enter &rarr;
-                </Link>
-              ) : (
-                <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", alignSelf: "flex-start" }}>
-                  In development
-                </span>
-              )}
+              <Link
+                href={href}
+                style={{
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  color: live
+                    ? (highlight ? "var(--color-dome-gold)" : "var(--color-river-blue)")
+                    : "var(--color-text-muted)",
+                  textDecoration: "none",
+                  alignSelf: "flex-start",
+                }}
+              >
+                {live ? "Enter →" : "Learn more →"}
+              </Link>
             </div>
           ))}
         </div>
