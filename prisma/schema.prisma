@@ -317,6 +317,7 @@ model Business {
   contacts     Contact[]
   transactions BusinessTransaction[]
   deals        Deal[]
+  planEntries  BusinessPlanEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -381,6 +382,18 @@ model BusinessTransaction {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+model BusinessPlanEntry {
+  id         String   @id @default(cuid())
+  businessId String
+  fieldId    String
+  value      String
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, fieldId])
 }
 
 // ── Proposals + Voting ───────────────────────────────────────────────────────

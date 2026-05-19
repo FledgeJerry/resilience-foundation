@@ -3,6 +3,8 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PlanTab from "./PlanTab";
+import DocumentsTab from "./DocumentsTab";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -70,12 +72,14 @@ function fmtDate(s: string) {
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type TabId = "overview" | "contacts" | "deals" | "financials";
+type TabId = "overview" | "contacts" | "deals" | "financials" | "plan" | "documents";
 const TABS: { id: TabId; label: string; minStage?: number }[] = [
   { id: "overview", label: "Overview" },
   { id: "contacts", label: "Contacts", minStage: 3 },
   { id: "deals", label: "Deals", minStage: 5 },
   { id: "financials", label: "Financials", minStage: 7 },
+  { id: "plan", label: "Plan" },
+  { id: "documents", label: "Documents" },
 ];
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
@@ -749,6 +753,8 @@ export default function BusinessWorkbookPage({ params }: { params: Promise<{ id:
           {activeTab === "contacts" && <ContactsTab biz={biz} onSave={save} />}
           {activeTab === "deals" && <DealsTab biz={biz} onSave={save} />}
           {activeTab === "financials" && <FinancialsTab biz={biz} onSave={save} />}
+          {activeTab === "plan" && <PlanTab businessId={biz.id} />}
+          {activeTab === "documents" && <DocumentsTab businessId={biz.id} />}
         </div>
       </div>
     </main>
