@@ -339,6 +339,192 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
   );
 }
 
+// ─── Stats Panel ─────────────────────────────────────────────────────────────
+
+type CohortStats = {
+  total: number;
+  demographics: { minority: number; woman: number; veteran: number; anyDemographic: number };
+  byStage: { stage: string; count: number }[];
+  byIndustry: { industry: string; count: number }[];
+  byCounty: { county: string; count: number }[];
+  byLeapStatus: { status: string; count: number }[];
+  byFormationType: { type: string; count: number }[];
+  byQuarter: { quarter: string; count: number }[];
+  fte: { totalCurrent: number; totalPlanned: number; withCurrentFte: number; withPlannedFte: number };
+  revenue: { withRevenue: number; avg: number; median: number; buckets: { label: string; count: number }[] };
+};
+
+function Bar({ value, max, color = "var(--color-dome-gold)" }: { value: number; max: number; color?: string }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div style={{ flex: 1, background: "var(--color-surface)", borderRadius: "3px", height: "8px", overflow: "hidden" }}>
+      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: "3px", transition: "width 0.3s" }} />
+    </div>
+  );
+}
+
+function BarRow({ label, value, max, color }: { label: string; value: number; max: number; color?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", minWidth: "160px", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      <Bar value={value} max={max} color={color} />
+      <span style={{ fontSize: "0.8rem", fontWeight: 600, minWidth: "28px", textAlign: "right", color: "var(--color-limestone)" }}>{value}</span>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "10px", padding: "1rem 1.25rem" }}>
+      <p style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--color-limestone)", lineHeight: 1 }}>{value}</p>
+      <p style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", marginTop: "0.3rem" }}>{label}</p>
+      {sub && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>{sub}</p>}
+    </div>
+  );
+}
+
+function SectionHead({ children }: { children: React.ReactNode }) {
+  return <h3 style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-muted)", margin: "0 0 0.75rem" }}>{children}</h3>;
+}
+
+function StatsPanel({ total }: { total: number }) {
+  const [stats, setStats] = useState<CohortStats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/cohort/stats").then(r => r.json()).then(setStats);
+  }, []);
+
+  if (!stats) return <div style={{ padding: "3rem", color: "var(--color-text-muted)" }}>Loading stats…</div>;
+
+  const { demographics, byStage, byIndustry, byCounty, byLeapStatus, byFormationType, byQuarter, fte, revenue } = stats;
+  const STAGE_ORDER = ["IDEA", "KNOW_GROUND", "FIND_PEOPLE", "BUILD_STRUCTURE", "TEST_SMALL", "GET_SUPPORT", "SUSTAIN", "GROW"];
+  const stagesSorted = STAGE_ORDER.map(s => byStage.find(b => b.stage === s) ?? { stage: s, count: 0 });
+  const maxStage = Math.max(...stagesSorted.map(s => s.count), 1);
+  const maxIndustry = Math.max(...byIndustry.map(i => i.count), 1);
+  const maxCounty = Math.max(...byCounty.map(c => c.count), 1);
+  const maxLeap = Math.max(...byLeapStatus.map(l => l.count), 1);
+  const maxForm = Math.max(...byFormationType.map(f => f.count), 1);
+  const maxQuarter = Math.max(...byQuarter.map(q => q.count), 1);
+  const maxRevBucket = Math.max(...revenue.buckets.map(b => b.count), 1);
+
+  const demoPct = (n: number) => total > 0 ? `${Math.round((n / total) * 100)}%` : "—";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+
+      {/* Top-line KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>
+        <StatCard label="Entrepreneurs" value={total} />
+        <StatCard label="SEDI-owned" value={demoPct(demographics.anyDemographic)} sub={`${demographics.anyDemographic} of ${total}`} />
+        <StatCard label="Jobs (current)" value={fte.totalCurrent.toLocaleString()} sub={`from ${fte.withCurrentFte} businesses`} />
+        <StatCard label="Jobs (planned)" value={fte.totalPlanned.toLocaleString()} sub={`from ${fte.withPlannedFte} businesses`} />
+        <StatCard label="Avg revenue" value={revenue.withRevenue ? `$${(revenue.avg / 1000).toFixed(0)}K` : "—"} sub={`${revenue.withRevenue} reported`} />
+        <StatCard label="Median revenue" value={revenue.withRevenue ? `$${(revenue.median / 1000).toFixed(0)}K` : "—"} />
+      </div>
+
+      {/* Demographics */}
+      <div className="card" style={{ padding: "1.25rem" }}>
+        <SectionHead>Ownership demographics</SectionHead>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem" }}>
+          {([
+            ["Minority-owned", demographics.minority, "var(--color-teal-accent)"],
+            ["Woman-owned", demographics.woman, "var(--color-river-blue)"],
+            ["Veteran-owned", demographics.veteran, "var(--color-dome-gold)"],
+          ] as [string, number, string][]).map(([label, count, color]) => (
+            <div key={label} style={{ textAlign: "center", padding: "0.75rem", background: "var(--color-surface)", borderRadius: "8px" }}>
+              <p style={{ fontSize: "2rem", fontWeight: 700, color, lineHeight: 1 }}>{demoPct(count)}</p>
+              <p style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", marginTop: "0.3rem" }}>{label}</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{count} of {total}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+
+        {/* Pipeline stage */}
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <SectionHead>Pipeline stage</SectionHead>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {stagesSorted.map(({ stage, count }) => (
+              <BarRow key={stage} label={STAGE_LABELS[stage]} value={count} max={maxStage} color="var(--color-dome-gold)" />
+            ))}
+          </div>
+        </div>
+
+        {/* LEAP status */}
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <SectionHead>LEAP status</SectionHead>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {byLeapStatus.map(({ status, count }) => (
+              <BarRow key={status} label={status} value={count} max={maxLeap} color="var(--color-river-blue)" />
+            ))}
+          </div>
+        </div>
+
+        {/* Formation type */}
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <SectionHead>Business formation</SectionHead>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {byFormationType.map(({ type, count }) => (
+              <BarRow key={type} label={type} value={count} max={maxForm} color="var(--color-teal-accent)" />
+            ))}
+          </div>
+        </div>
+
+        {/* Revenue buckets */}
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <SectionHead>Annual revenue range</SectionHead>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {revenue.buckets.map(({ label, count }) => (
+              <BarRow key={label} label={label} value={count} max={maxRevBucket} color="var(--color-dome-gold)" />
+            ))}
+            <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{total - revenue.withRevenue} businesses have no revenue reported</p>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Industry */}
+      <div className="card" style={{ padding: "1.25rem" }}>
+        <SectionHead>Top industries</SectionHead>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {byIndustry.map(({ industry, count }) => (
+            <BarRow key={industry} label={industry} value={count} max={maxIndustry} color="var(--color-dome-gold)" />
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+
+        {/* County */}
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <SectionHead>County</SectionHead>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {byCounty.map(({ county, count }) => (
+              <BarRow key={county} label={county} value={count} max={maxCounty} color="var(--color-teal-accent)" />
+            ))}
+          </div>
+        </div>
+
+        {/* Submissions by quarter */}
+        {byQuarter.length > 0 && (
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <SectionHead>Submissions by quarter</SectionHead>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {byQuarter.map(({ quarter, count }) => (
+                <BarRow key={quarter} label={quarter} value={count} max={maxQuarter} color="var(--color-river-blue)" />
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CohortPage() {
@@ -346,6 +532,7 @@ export default function CohortPage() {
   const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"list" | "stats">("list");
   const [q, setQ] = useState("");
   const [filterStage, setFilterStage] = useState("");
   const [filterIndustry, setFilterIndustry] = useState("");
@@ -402,6 +589,18 @@ export default function CohortPage() {
           <Link href="/admin" style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>← Back to admin</Link>
         </div>
       </div>
+
+      {/* View toggle */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--color-border)" }}>
+        {(["list", "stats"] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)} style={{ padding: "0.5rem 1.25rem", fontSize: "0.85rem", fontWeight: 600, border: "none", cursor: "pointer", borderBottom: `2px solid ${view === v ? "var(--color-dome-gold)" : "transparent"}`, background: "transparent", color: view === v ? "var(--color-dome-gold)" : "var(--color-text-muted)", textTransform: "capitalize" }}>
+            {v === "list" ? "Roster" : "Stats"}
+          </button>
+        ))}
+      </div>
+
+      {view === "stats" && <StatsPanel total={entries.length} />}
+      {view === "list" && <>
 
       {/* New entrepreneur form */}
       {showNew && (
@@ -523,7 +722,9 @@ export default function CohortPage() {
         Click any row to edit. Stage dropdown saves immediately. Imported entrepreneurs can claim their account by registering with their email.
       </p>
 
-      {/* Edit drawer */}
+      </>}
+
+      {/* Edit drawer (outside list guard so it stays mounted on tab switch) */}
       {selected && (
         <EditDrawer
           entry={selected}
