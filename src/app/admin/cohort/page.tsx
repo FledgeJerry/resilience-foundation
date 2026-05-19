@@ -588,6 +588,7 @@ export default function CohortPage() {
       case "revenue":  return e.annualRevenue ?? -1;
       case "fte":      return e.currentFte ?? -1;
       case "leap":     return (e.leapStatus ?? "").toLowerCase();
+      case "date":     return e.leapSubmittedAt ?? "";
       default:         return null;
     }
   }
@@ -688,6 +689,7 @@ export default function CohortPage() {
                 ["revenue",  "Revenue"],
                 ["fte",      "FTEs"],
                 ["leap",     "LEAP"],
+                ["date",     "Date Connected"],
               ] as [string, string][]).map(([col, label]) => (
                 <th key={col} onClick={() => toggleSort(col)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
                   {label}{" "}
@@ -700,7 +702,7 @@ export default function CohortPage() {
           </thead>
           <tbody>
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>No entries found</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>No entries found</td></tr>
             )}
             {sortedEntries.map((e) => {
               const owner = e.members[0]?.user;
@@ -749,6 +751,9 @@ export default function CohortPage() {
                         {e.leapStatus}
                       </span>
                     )}
+                  </td>
+                  <td style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                    {e.leapSubmittedAt ? new Date(e.leapSubmittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                   </td>
                 </tr>
               );
