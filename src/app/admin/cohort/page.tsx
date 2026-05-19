@@ -615,6 +615,7 @@ export default function CohortPage() {
         </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           <button className="btn btn--primary" onClick={() => setShowNew(v => !v)}>+ New Entrepreneur</button>
+          <Link href="/admin/cohort/import" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>Import from PDF / text</Link>
           <Link href="/admin" style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>← Back to admin</Link>
         </div>
       </div>
