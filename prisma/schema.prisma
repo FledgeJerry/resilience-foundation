@@ -346,6 +346,8 @@ model Business {
   deals        Deal[]
   planEntries  BusinessPlanEntry[]
   funding      BusinessFunding[]
+  connections  BusinessConnection[]
+  hires        BusinessHire[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -406,6 +408,32 @@ model BusinessTransaction {
   category    String
   description String?
   amount      Float
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model BusinessConnection {
+  id          String    @id @default(cuid())
+  businessId  String
+  resource    String
+  description String?
+  connectedAt DateTime?
+  notes       String?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BusinessHire {
+  id         String    @id @default(cuid())
+  businessId String
+  fteAdded   Int
+  hiredAt    DateTime?
+  notes      String?
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 

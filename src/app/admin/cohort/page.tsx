@@ -26,6 +26,8 @@ const FUNDING_LABELS: Record<FundingType, string> = { GRANT: "Grant", LOAN: "Loa
 const FUNDING_COLORS: Record<FundingType, string> = { GRANT: "#4a9b8e", LOAN: "#7b8ea8", PRIZE: "#c9a227", INVESTMENT: "#8b6cb3", OTHER: "#888" };
 
 type FundingRecord = { id: string; type: FundingType; amount: number | null; source: string; receivedAt: string | null; notes: string | null };
+type ConnectionRecord = { id: string; resource: string; description: string | null; connectedAt: string | null; notes: string | null };
+type HireRecord = { id: string; fteAdded: number; hiredAt: string | null; notes: string | null };
 
 type Owner = { id: string; name: string | null; email: string; phone: string | null };
 type Contact = { id: string; type: string; name: string; email: string | null; phone: string | null; company: string | null; notes: string | null };
@@ -305,6 +307,229 @@ function FundingTab({ businessId, records, onRecordsChange }: {
   );
 }
 
+// ─── Connections Tab ─────────────────────────────────────────────────────────
+
+function ConnectionsTab({ businessId, records, onRecordsChange }: {
+  businessId: string;
+  records: ConnectionRecord[] | null;
+  onRecordsChange: (r: ConnectionRecord[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ resource: "", description: "", connectedAt: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ resource: "", description: "", connectedAt: "", notes: "" });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+
+  async function addRecord() {
+    if (!form.resource.trim()) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/cohort/${businessId}/connections`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      onRecordsChange([await res.json(), ...(records ?? [])]);
+      setForm({ resource: "", description: "", connectedAt: "", notes: "" });
+      setAdding(false);
+    }
+    setSaving(false);
+  }
+
+  async function saveEdit(id: string) {
+    setSaving(true);
+    const res = await fetch(`/api/admin/cohort/${businessId}/connections/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      onRecordsChange((records ?? []).map(r => r.id === id ? { ...r, ...updated } : r));
+      setEditId(null);
+    }
+    setSaving(false);
+  }
+
+  async function deleteRecord(id: string) {
+    setDeletingId(id);
+    await fetch(`/api/admin/cohort/${businessId}/connections/${id}`, { method: "DELETE" });
+    onRecordsChange((records ?? []).filter(r => r.id !== id));
+    setDeletingId(null);
+  }
+
+  if (records === null) return <div style={{ padding: "2rem", color: "var(--color-text-muted)" }}>Loading…</div>;
+
+  return (
+    <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      {!adding ? (
+        <button className="btn btn--secondary" style={{ alignSelf: "flex-start", fontSize: "0.8rem" }} onClick={() => setAdding(true)}>+ Add connection</button>
+      ) : (
+        <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>New connection</p>
+          <Field label="Connected to (organization / resource / opportunity)">
+            <input style={inpSm} value={form.resource} onChange={e => setForm(f => ({ ...f, resource: e.target.value }))} placeholder="Capital Area Startup Studio, Foster Swift, Vending Opportunity…" />
+          </Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+            <Field label="Description">
+              <input style={inpSm} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What was the connection?" />
+            </Field>
+            <Field label="Date">
+              <input style={inpSm} type="date" value={form.connectedAt} onChange={e => setForm(f => ({ ...f, connectedAt: e.target.value }))} />
+            </Field>
+          </div>
+          <Field label="Notes">
+            <textarea style={{ ...inpSm, minHeight: "52px", resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </Field>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="btn btn--primary" style={{ fontSize: "0.8rem" }} onClick={addRecord} disabled={saving || !form.resource.trim()}>{saving ? "Saving…" : "Save"}</button>
+            <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }} onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {records.length === 0 ? (
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem" }}>No connections recorded yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {records.map(r => editId === r.id ? (
+            <div key={r.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-dome-gold)", borderRadius: "8px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <Field label="Connected to">
+                <input style={inpSm} value={editForm.resource} onChange={e => setEditForm(f => ({ ...f, resource: e.target.value }))} />
+              </Field>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+                <Field label="Description">
+                  <input style={inpSm} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                </Field>
+                <Field label="Date">
+                  <input style={inpSm} type="date" value={editForm.connectedAt} onChange={e => setEditForm(f => ({ ...f, connectedAt: e.target.value }))} />
+                </Field>
+              </div>
+              <Field label="Notes">
+                <textarea style={{ ...inpSm, minHeight: "52px", resize: "vertical" }} value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+              </Field>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn btn--primary" style={{ fontSize: "0.8rem" }} onClick={() => saveEdit(r.id)} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }} onClick={() => setEditId(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div key={r.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 600, color: "var(--color-limestone)", fontSize: "0.9rem", marginBottom: "0.15rem" }}>{r.resource}</p>
+                {r.description && <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "0.1rem" }}>{r.description}</p>}
+                <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{fmtDate(r.connectedAt)}</p>
+                {r.notes && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", marginTop: "0.3rem", fontStyle: "italic" }}>{r.notes}</p>}
+              </div>
+              <div style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
+                <button onClick={() => { setEditId(r.id); setEditForm({ resource: r.resource, description: r.description ?? "", connectedAt: r.connectedAt ? r.connectedAt.slice(0, 10) : "", notes: r.notes ?? "" }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "var(--color-text-muted)", padding: "0.2rem 0.4rem" }}>Edit</button>
+                <button onClick={() => deleteRecord(r.id)} disabled={deletingId === r.id} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070", padding: "0.2rem 0.4rem" }}>{deletingId === r.id ? "…" : "Delete"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Hires Tab ────────────────────────────────────────────────────────────────
+
+function HiresTab({ businessId, records, onRecordsChange }: {
+  businessId: string;
+  records: HireRecord[] | null;
+  onRecordsChange: (r: HireRecord[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ fteAdded: "1", hiredAt: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const totalHired = (records ?? []).reduce((s, r) => s + r.fteAdded, 0);
+  const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+
+  async function addRecord() {
+    const fte = parseInt(form.fteAdded, 10);
+    if (!fte || fte < 1) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/cohort/${businessId}/hires`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      onRecordsChange([await res.json(), ...(records ?? [])]);
+      setForm({ fteAdded: "1", hiredAt: "", notes: "" });
+      setAdding(false);
+    }
+    setSaving(false);
+  }
+
+  async function deleteRecord(r: HireRecord) {
+    setDeletingId(r.id);
+    await fetch(`/api/admin/cohort/${businessId}/hires/${r.id}`, { method: "DELETE" });
+    onRecordsChange((records ?? []).filter(x => x.id !== r.id));
+    setDeletingId(null);
+  }
+
+  if (records === null) return <div style={{ padding: "2rem", color: "var(--color-text-muted)" }}>Loading…</div>;
+
+  return (
+    <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      {records.length > 0 && (
+        <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "0.9rem 1.1rem" }}>
+          <p style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--color-teal-accent)", lineHeight: 1 }}>{totalHired}</p>
+          <p style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>FTEs hired (recorded)</p>
+        </div>
+      )}
+
+      {!adding ? (
+        <button className="btn btn--secondary" style={{ alignSelf: "flex-start", fontSize: "0.8rem" }} onClick={() => setAdding(true)}>+ Record hire event</button>
+      ) : (
+        <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>New hire event</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+            <Field label="FTEs hired">
+              <input style={inpSm} type="number" min="1" value={form.fteAdded} onChange={e => setForm(f => ({ ...f, fteAdded: e.target.value }))} />
+            </Field>
+            <Field label="Date">
+              <input style={inpSm} type="date" value={form.hiredAt} onChange={e => setForm(f => ({ ...f, hiredAt: e.target.value }))} />
+            </Field>
+          </div>
+          <Field label="Notes">
+            <textarea style={{ ...inpSm, minHeight: "52px", resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Role, context, program-related…" />
+          </Field>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="btn btn--primary" style={{ fontSize: "0.8rem" }} onClick={addRecord} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+            <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }} onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {records.length === 0 ? (
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem" }}>No hire events recorded yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {records.map(r => (
+            <div key={r.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.15rem" }}>
+                  <span style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--color-teal-accent)" }}>+{r.fteAdded}</span>
+                  <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>FTE{r.fteAdded !== 1 ? "s" : ""} hired</span>
+                </div>
+                <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{fmtDate(r.hiredAt)}</p>
+                {r.notes && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", marginTop: "0.3rem", fontStyle: "italic" }}>{r.notes}</p>}
+              </div>
+              <button onClick={() => deleteRecord(r)} disabled={deletingId === r.id} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070", padding: "0.2rem 0.4rem", flexShrink: 0 }}>{deletingId === r.id ? "…" : "Delete"}</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Edit Drawer ──────────────────────────────────────────────────────────────
 
 function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
@@ -314,7 +539,9 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
   const [entry, setEntry] = useState<Entry>(initial);
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [funding, setFunding] = useState<FundingRecord[] | null>(null);
-  const [tab, setTab] = useState<"details" | "contacts" | "funding">("details");
+  const [connections, setConnections] = useState<ConnectionRecord[] | null>(null);
+  const [hires, setHires] = useState<HireRecord[] | null>(null);
+  const [tab, setTab] = useState<"details" | "contacts" | "funding" | "connections" | "hires">("details");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -328,9 +555,9 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         setEntry(data);
         setContacts(data.contacts ?? []);
       });
-    fetch(`/api/admin/cohort/${initial.id}/funding`)
-      .then(r => r.json())
-      .then(setFunding);
+    fetch(`/api/admin/cohort/${initial.id}/funding`).then(r => r.json()).then(setFunding);
+    fetch(`/api/admin/cohort/${initial.id}/connections`).then(r => r.json()).then(setConnections);
+    fetch(`/api/admin/cohort/${initial.id}/hires`).then(r => r.json()).then(setHires);
   }, [initial.id]);
 
   const owner = entry.members[0]?.user;
@@ -417,6 +644,8 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
           {tabBtn("details", "Details")}
           {tabBtn("contacts", "Contacts", contacts?.length ?? entry._count.contacts)}
           {tabBtn("funding", "Funding", funding?.length)}
+          {tabBtn("connections", "Connections", connections?.length)}
+          {tabBtn("hires", "Hires", hires?.length)}
         </div>
 
         {tab === "details" && (
@@ -494,6 +723,12 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
 
         {tab === "funding" && (
           <FundingTab businessId={entry.id} records={funding} onRecordsChange={setFunding} />
+        )}
+        {tab === "connections" && (
+          <ConnectionsTab businessId={entry.id} records={connections} onRecordsChange={setConnections} />
+        )}
+        {tab === "hires" && (
+          <HiresTab businessId={entry.id} records={hires} onRecordsChange={setHires} />
         )}
 
         {tab === "contacts" && (
