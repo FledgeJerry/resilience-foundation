@@ -273,12 +273,28 @@ async function main() {
 
   for (const rec of Array.from(merged.values())) {
     try {
-      // Skip if email already exists
       const existingUser = await prisma.user.findUnique({ where: { email: rec.email } });
       if (existingUser) {
-        const existingBiz = await prisma.businessMember.findFirst({ where: { userId: existingUser.id } });
-        if (existingBiz) {
-          console.log(`  → skip  ${rec.email} (already imported)`);
+        const existingMember = await prisma.businessMember.findFirst({
+          where: { userId: existingUser.id },
+          include: { business: { select: { id: true, laraId: true, laraDate: true } } },
+        });
+        if (existingMember) {
+          // Update LARA fields if the existing record is missing them
+          const biz = existingMember.business;
+          const needsUpdate = (!biz.laraDate && rec.laraDate) || (!biz.laraId && rec.laraId);
+          if (needsUpdate) {
+            await prisma.business.update({
+              where: { id: biz.id },
+              data: {
+                ...(rec.laraDate && !biz.laraDate ? { laraDate: rec.laraDate } : {}),
+                ...(rec.laraId && !biz.laraId ? { laraId: rec.laraId } : {}),
+              },
+            });
+            console.log(`  ↑ update ${rec.email} (added LARA data)`);
+          } else {
+            console.log(`  → skip  ${rec.email} (already imported)`);
+          }
           skipped++;
           continue;
         }
