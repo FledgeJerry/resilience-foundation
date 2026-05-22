@@ -20,6 +20,13 @@ const CONTACT_TYPE_LABELS: Record<string, string> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+const FUNDING_TYPES = ["GRANT", "LOAN", "PRIZE", "INVESTMENT", "OTHER"] as const;
+type FundingType = typeof FUNDING_TYPES[number];
+const FUNDING_LABELS: Record<FundingType, string> = { GRANT: "Grant", LOAN: "Loan", PRIZE: "Prize", INVESTMENT: "Investment", OTHER: "Other" };
+const FUNDING_COLORS: Record<FundingType, string> = { GRANT: "#4a9b8e", LOAN: "#7b8ea8", PRIZE: "#c9a227", INVESTMENT: "#8b6cb3", OTHER: "#888" };
+
+type FundingRecord = { id: string; type: FundingType; amount: number | null; source: string; receivedAt: string | null; notes: string | null };
+
 type Owner = { id: string; name: string | null; email: string; phone: string | null };
 type Contact = { id: string; type: string; name: string; email: string | null; phone: string | null; company: string | null; notes: string | null };
 type Entry = {
@@ -127,6 +134,177 @@ function NewEntrepreneurForm({ onCreated, onCancel }: { onCreated: (e: Entry) =>
   );
 }
 
+// ─── Funding Tab ──────────────────────────────────────────────────────────────
+
+const emptyFunding = () => ({ type: "GRANT" as FundingType, amount: "", source: "", receivedAt: "", notes: "" });
+
+function FundingTab({ businessId, records, onRecordsChange }: {
+  businessId: string;
+  records: FundingRecord[] | null;
+  onRecordsChange: (r: FundingRecord[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState(emptyFunding());
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState(emptyFunding());
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const total = (records ?? []).reduce((s, r) => s + (r.amount ?? 0), 0);
+
+  async function addRecord() {
+    if (!form.source.trim()) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/cohort/${businessId}/funding`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, amount: form.amount ? parseFloat(form.amount) : null }),
+    });
+    if (res.ok) {
+      const rec = await res.json();
+      onRecordsChange([rec, ...(records ?? [])]);
+      setForm(emptyFunding());
+      setAdding(false);
+    }
+    setSaving(false);
+  }
+
+  async function saveEdit(id: string) {
+    setSaving(true);
+    const res = await fetch(`/api/admin/cohort/${businessId}/funding/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...editForm, amount: editForm.amount ? parseFloat(editForm.amount) : null }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      onRecordsChange((records ?? []).map(r => r.id === id ? updated : r));
+      setEditId(null);
+    }
+    setSaving(false);
+  }
+
+  async function deleteRecord(id: string) {
+    setDeletingId(id);
+    await fetch(`/api/admin/cohort/${businessId}/funding/${id}`, { method: "DELETE" });
+    onRecordsChange((records ?? []).filter(r => r.id !== id));
+    setDeletingId(null);
+  }
+
+  const fmtAmt = (n: number | null) => n != null ? `$${n.toLocaleString()}` : "—";
+  const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+
+  if (records === null) return <div style={{ padding: "2rem", color: "var(--color-text-muted)" }}>Loading…</div>;
+
+  return (
+    <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      {/* Summary bar */}
+      {records.length > 0 && (
+        <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "0.9rem 1.1rem", display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
+          <div>
+            <p style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--color-dome-gold)", lineHeight: 1 }}>${total.toLocaleString()}</p>
+            <p style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>Total funding</p>
+          </div>
+          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+            {FUNDING_TYPES.map(t => {
+              const recs = records.filter(r => r.type === t);
+              if (!recs.length) return null;
+              const sum = recs.reduce((s, r) => s + (r.amount ?? 0), 0);
+              return (
+                <span key={t} style={{ fontSize: "0.7rem", padding: "2px 7px", borderRadius: "4px", background: `${FUNDING_COLORS[t]}22`, color: FUNDING_COLORS[t], fontWeight: 600 }}>
+                  {FUNDING_LABELS[t]}: ${sum.toLocaleString()}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Add button / form */}
+      {!adding ? (
+        <button className="btn btn--secondary" style={{ alignSelf: "flex-start", fontSize: "0.8rem" }} onClick={() => setAdding(true)}>+ Add funding record</button>
+      ) : (
+        <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>New funding record</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+            <Field label="Type">
+              <select style={inpSm} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as FundingType }))}>
+                {FUNDING_TYPES.map(t => <option key={t} value={t}>{FUNDING_LABELS[t]}</option>)}
+              </select>
+            </Field>
+            <Field label="Amount ($)">
+              <input style={inpSm} type="number" min="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" />
+            </Field>
+            <Field label="Source / Funder">
+              <input style={{ ...inpSm, gridColumn: "span 2" }} value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} placeholder="BAF, LEAP, MEDC…" />
+            </Field>
+            <Field label="Date received">
+              <input style={inpSm} type="date" value={form.receivedAt} onChange={e => setForm(f => ({ ...f, receivedAt: e.target.value }))} />
+            </Field>
+          </div>
+          <Field label="Notes">
+            <textarea style={{ ...inpSm, minHeight: "56px", resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Terms, conditions, program name…" />
+          </Field>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="btn btn--primary" style={{ fontSize: "0.8rem" }} onClick={addRecord} disabled={saving || !form.source.trim()}>{saving ? "Saving…" : "Save"}</button>
+            <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }} onClick={() => { setAdding(false); setForm(emptyFunding()); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Records list */}
+      {records.length === 0 ? (
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem" }}>No funding records yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {records.map(r => editId === r.id ? (
+            <div key={r.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-dome-gold)", borderRadius: "8px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+                <Field label="Type">
+                  <select style={inpSm} value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value as FundingType }))}>
+                    {FUNDING_TYPES.map(t => <option key={t} value={t}>{FUNDING_LABELS[t]}</option>)}
+                  </select>
+                </Field>
+                <Field label="Amount ($)">
+                  <input style={inpSm} type="number" min="0" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
+                </Field>
+                <Field label="Source / Funder">
+                  <input style={inpSm} value={editForm.source} onChange={e => setEditForm(f => ({ ...f, source: e.target.value }))} />
+                </Field>
+                <Field label="Date received">
+                  <input style={inpSm} type="date" value={editForm.receivedAt} onChange={e => setEditForm(f => ({ ...f, receivedAt: e.target.value }))} />
+                </Field>
+              </div>
+              <Field label="Notes">
+                <textarea style={{ ...inpSm, minHeight: "56px", resize: "vertical" }} value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+              </Field>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn btn--primary" style={{ fontSize: "0.8rem" }} onClick={() => saveEdit(r.id)} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }} onClick={() => setEditId(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div key={r.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "1rem", fontWeight: 700, color: "var(--color-limestone)" }}>{fmtAmt(r.amount)}</span>
+                  <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "1px 6px", borderRadius: "3px", background: `${FUNDING_COLORS[r.type]}22`, color: FUNDING_COLORS[r.type], letterSpacing: "0.07em", textTransform: "uppercase" }}>{FUNDING_LABELS[r.type]}</span>
+                </div>
+                <p style={{ fontSize: "0.82rem", color: "var(--color-limestone)", marginBottom: "0.1rem" }}>{r.source}</p>
+                <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{fmtDate(r.receivedAt)}</p>
+                {r.notes && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", marginTop: "0.3rem", fontStyle: "italic" }}>{r.notes}</p>}
+              </div>
+              <div style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
+                <button onClick={() => { setEditId(r.id); setEditForm({ type: r.type, amount: r.amount != null ? String(r.amount) : "", source: r.source, receivedAt: r.receivedAt ? r.receivedAt.slice(0, 10) : "", notes: r.notes ?? "" }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "var(--color-text-muted)", padding: "0.2rem 0.4rem" }}>Edit</button>
+                <button onClick={() => deleteRecord(r.id)} disabled={deletingId === r.id} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070", padding: "0.2rem 0.4rem" }}>{deletingId === r.id ? "…" : "Delete"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Edit Drawer ──────────────────────────────────────────────────────────────
 
 function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
@@ -135,7 +313,8 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
 }) {
   const [entry, setEntry] = useState<Entry>(initial);
   const [contacts, setContacts] = useState<Contact[] | null>(null);
-  const [tab, setTab] = useState<"details" | "contacts">("details");
+  const [funding, setFunding] = useState<FundingRecord[] | null>(null);
+  const [tab, setTab] = useState<"details" | "contacts" | "funding">("details");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -149,6 +328,9 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         setEntry(data);
         setContacts(data.contacts ?? []);
       });
+    fetch(`/api/admin/cohort/${initial.id}/funding`)
+      .then(r => r.json())
+      .then(setFunding);
   }, [initial.id]);
 
   const owner = entry.members[0]?.user;
@@ -234,6 +416,7 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         <div style={{ borderBottom: "1px solid var(--color-border)", padding: "0 1rem", display: "flex", gap: "0.25rem" }}>
           {tabBtn("details", "Details")}
           {tabBtn("contacts", "Contacts", contacts?.length ?? entry._count.contacts)}
+          {tabBtn("funding", "Funding", funding?.length)}
         </div>
 
         {tab === "details" && (
@@ -309,6 +492,10 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
           </div>
         )}
 
+        {tab === "funding" && (
+          <FundingTab businessId={entry.id} records={funding} onRecordsChange={setFunding} />
+        )}
+
         {tab === "contacts" && (
           <div style={{ padding: "1.5rem", flex: 1 }}>
             {contacts === null ? (
@@ -358,6 +545,7 @@ type CohortStats = {
   byQuarter: { quarter: string; count: number }[];
   fte: { totalCurrent: number; totalPlanned: number; withCurrentFte: number; withPlannedFte: number };
   revenue: { withRevenue: number; avg: number; median: number; buckets: { label: string; count: number }[] };
+  funding: { total: number; count: number; byType: { type: string; total: number; count: number }[]; topSources: { source: string; total: number; count: number }[] };
 };
 
 function Bar({ value, max, color = "var(--color-dome-gold)" }: { value: number; max: number; color?: string }) {
@@ -402,7 +590,7 @@ function StatsPanel({ total }: { total: number }) {
 
   if (!stats) return <div style={{ padding: "3rem", color: "var(--color-text-muted)" }}>Loading stats…</div>;
 
-  const { demographics, byStage, byIndustry, byCounty, byLeapStatus, byFormationType, byLaraYear, withLaraDate, byQuarter, fte, revenue } = stats;
+  const { demographics, byStage, byIndustry, byCounty, byLeapStatus, byFormationType, byLaraYear, withLaraDate, byQuarter, fte, revenue, funding } = stats;
   const STAGE_ORDER = ["IDEA", "KNOW_GROUND", "FIND_PEOPLE", "BUILD_STRUCTURE", "TEST_SMALL", "GET_SUPPORT", "SUSTAIN", "GROW"];
   const stagesSorted = STAGE_ORDER.map(s => byStage.find(b => b.stage === s) ?? { stage: s, count: 0 });
   const maxStage = Math.max(...stagesSorted.map(s => s.count), 1);
@@ -422,10 +610,10 @@ function StatsPanel({ total }: { total: number }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>
         <StatCard label="Entrepreneurs" value={total} />
         <StatCard label="SEDI-owned" value={demoPct(demographics.anyDemographic)} sub={`${demographics.anyDemographic} of ${total}`} />
+        <StatCard label="Total funding" value={funding?.total ? `$${(funding.total / 1000).toFixed(0)}K` : "—"} sub={funding?.count ? `${funding.count} records` : "no records yet"} />
         <StatCard label="Jobs (current)" value={fte.totalCurrent.toLocaleString()} sub={`from ${fte.withCurrentFte} businesses`} />
         <StatCard label="Jobs (planned)" value={fte.totalPlanned.toLocaleString()} sub={`from ${fte.withPlannedFte} businesses`} />
         <StatCard label="Avg revenue" value={revenue.withRevenue ? `$${(revenue.avg / 1000).toFixed(0)}K` : "—"} sub={`${revenue.withRevenue} reported`} />
-        <StatCard label="Median revenue" value={revenue.withRevenue ? `$${(revenue.median / 1000).toFixed(0)}K` : "—"} />
       </div>
 
       {/* Demographics */}
@@ -547,6 +735,38 @@ function StatsPanel({ total }: { total: number }) {
         )}
 
       </div>
+
+      {/* Funding breakdown */}
+      {funding && funding.count > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <SectionHead>Funding by type</SectionHead>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {funding.byType.map(({ type, total: amt, count }) => (
+                <div key={type} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", minWidth: "90px", flexShrink: 0 }}>{FUNDING_LABELS[type as FundingType] ?? type}</span>
+                  <Bar value={amt} max={funding.total} color={FUNDING_COLORS[type as FundingType] ?? "var(--color-dome-gold)"} />
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--color-limestone)", minWidth: "70px", textAlign: "right" }}>${(amt / 1000).toFixed(0)}K</span>
+                  <span style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", minWidth: "20px" }}>×{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <SectionHead>Top funders</SectionHead>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {funding.topSources.map(({ source, total: amt, count }) => (
+                <div key={source} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", minWidth: "120px", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source}</span>
+                  <Bar value={amt} max={funding.topSources[0]?.total ?? 1} color="var(--color-dome-gold)" />
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--color-limestone)", minWidth: "60px", textAlign: "right" }}>${(amt / 1000).toFixed(0)}K</span>
+                  <span style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", minWidth: "20px" }}>×{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -26,6 +26,7 @@ export async function GET() {
       isMinorityOwned: true,
       isWomanOwned: true,
       isVeteranOwned: true,
+      funding: { select: { type: true, amount: true, source: true } },
     },
   });
 
@@ -137,6 +138,34 @@ export async function GET() {
     count: revenues.filter((r) => r >= min && r < max).length,
   }));
 
+  // Funding aggregates
+  const allFunding = businesses.flatMap((b) => b.funding);
+  const fundingTotal = allFunding.reduce((s, f) => s + (f.amount ?? 0), 0);
+  const fundingByType = new Map<string, { total: number; count: number }>();
+  for (const f of allFunding) {
+    const e = fundingByType.get(f.type) ?? { total: 0, count: 0 };
+    e.total += f.amount ?? 0; e.count++;
+    fundingByType.set(f.type, e);
+  }
+  const fundingBySource = new Map<string, { total: number; count: number }>();
+  for (const f of allFunding) {
+    const key = f.source.trim() || "Unknown";
+    const e = fundingBySource.get(key) ?? { total: 0, count: 0 };
+    e.total += f.amount ?? 0; e.count++;
+    fundingBySource.set(key, e);
+  }
+  const funding = {
+    total: fundingTotal,
+    count: allFunding.length,
+    byType: Array.from(fundingByType.entries())
+      .map(([type, { total, count }]) => ({ type, total, count }))
+      .sort((a, b) => b.total - a.total),
+    topSources: Array.from(fundingBySource.entries())
+      .map(([source, { total, count }]) => ({ source, total, count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10),
+  };
+
   return NextResponse.json({
     total,
     demographics: { minority, woman, veteran, anyDemographic },
@@ -160,5 +189,6 @@ export async function GET() {
       median: Math.round(medianRevenue),
       buckets: revenueBuckets,
     },
+    funding,
   });
 }

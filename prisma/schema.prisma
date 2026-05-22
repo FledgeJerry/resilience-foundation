@@ -299,6 +299,14 @@ enum TransactionType {
   EXPENSE
 }
 
+enum FundingType {
+  GRANT
+  LOAN
+  PRIZE
+  INVESTMENT
+  OTHER
+}
+
 model Business {
   id          String        @id @default(cuid())
   name        String
@@ -337,6 +345,7 @@ model Business {
   transactions BusinessTransaction[]
   deals        Deal[]
   planEntries  BusinessPlanEntry[]
+  funding      BusinessFunding[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -401,6 +410,21 @@ model BusinessTransaction {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+model BusinessFunding {
+  id          String      @id @default(cuid())
+  businessId  String
+  type        FundingType @default(GRANT)
+  amount      Float?
+  source      String
+  receivedAt  DateTime?
+  notes       String?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model BusinessPlanEntry {
