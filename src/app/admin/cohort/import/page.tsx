@@ -134,7 +134,7 @@ export default function CohortImportPage() {
   const [importing, setImporting] = useState(false);
   const [records, setRecords] = useState<ExtractedRecord[]>([]);
   const [error, setError] = useState("");
-  const [done, setDone] = useState<{ created: number; skipped: number } | null>(null);
+  const [done, setDone] = useState<{ created: number; updated: number; skipped: number } | null>(null);
 
   if (status === "loading") return null;
   if (!session || (session.user as { role?: string }).role !== "ADMIN") {
@@ -179,6 +179,7 @@ export default function CohortImportPage() {
     setImporting(true);
     setError("");
     let created = 0;
+    let updated = 0;
     let skipped = 0;
 
     for (const rec of records.filter(r => r.enabled)) {
@@ -210,12 +211,13 @@ export default function CohortImportPage() {
           stage: rec.stage,
         }),
       });
-      if (res.ok) created++;
+      if (res.status === 201) created++;
+      else if (res.status === 200) updated++;
       else skipped++;
     }
 
     setImporting(false);
-    setDone({ created, skipped });
+    setDone({ created, updated, skipped });
   }
 
   const enabledCount = records.filter(r => r.enabled).length;
@@ -306,7 +308,7 @@ export default function CohortImportPage() {
             >
               {importing ? "Importing…" : `Import ${enabledCount} entrepreneur${enabledCount !== 1 ? "s" : ""}`}
             </button>
-            <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)" }}>Existing emails are skipped automatically.</p>
+            <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)" }}>Existing email matches are merged, not duplicated.</p>
           </div>
         </>
       )}
@@ -315,9 +317,9 @@ export default function CohortImportPage() {
       {done && (
         <div style={{ background: "rgba(74,155,142,0.1)", border: "1px solid var(--color-teal-accent)", borderRadius: "10px", padding: "2rem", textAlign: "center" }}>
           <p style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--color-teal-accent)", marginBottom: "0.5rem" }}>
-            {done.created} entrepreneur{done.created !== 1 ? "s" : ""} imported
+            {done.created} created{done.updated > 0 ? `, ${done.updated} updated` : ""}
           </p>
-          {done.skipped > 0 && <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>{done.skipped} skipped (missing email/name or already exist)</p>}
+          {done.skipped > 0 && <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>{done.skipped} skipped (missing email or business name)</p>}
           <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
             <Link href="/admin/cohort" className="btn btn--primary">View cohort →</Link>
             <button className="btn btn--ghost" style={{ fontSize: "0.85rem" }} onClick={() => { setDone(null); setRecords([]); setFile(null); setText(""); }}>

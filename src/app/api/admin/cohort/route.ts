@@ -61,6 +61,55 @@ export async function POST(req: Request) {
     user = await prisma.user.create({
       data: { name: ownerName || ownerEmail.split("@")[0], email: ownerEmail, phone: ownerPhone || null, isImported: true },
     });
+  } else {
+    // Fill null user fields without overwriting existing data
+    const userPatch: Record<string, unknown> = {};
+    if (!user.name && ownerName) userPatch.name = ownerName;
+    if (!user.phone && ownerPhone) userPatch.phone = ownerPhone;
+    if (Object.keys(userPatch).length) {
+      user = await prisma.user.update({ where: { id: user.id }, data: userPatch });
+    }
+  }
+
+  // If user already owns a business, merge incoming data into it instead of creating a duplicate
+  const existingMember = await prisma.businessMember.findFirst({
+    where: { userId: user.id, role: "OWNER" },
+    include: { business: true },
+  });
+
+  if (existingMember) {
+    const existing = existingMember.business as Record<string, unknown>;
+    const updateData: Record<string, unknown> = {};
+
+    const stringFields = ["industry", "city", "state", "county", "website", "description", "leapStatus", "notes", "formationType", "naicsCode"];
+    const numFields = ["currentFte", "plannedFte", "annualRevenue"];
+    const boolFields = ["isMinorityOwned", "isWomanOwned", "isVeteranOwned"];
+
+    for (const k of stringFields) {
+      const incoming = bizFields[k];
+      if (incoming && typeof incoming === "string" && incoming.trim() && !existing[k]) updateData[k] = incoming;
+    }
+    for (const k of numFields) {
+      const incoming = bizFields[k];
+      if (incoming != null && existing[k] == null) updateData[k] = incoming;
+    }
+    for (const k of boolFields) {
+      if (bizFields[k] === true && !existing[k]) updateData[k] = true;
+    }
+
+    const updated = await prisma.business.update({
+      where: { id: existingMember.businessId },
+      data: updateData,
+      include: {
+        members: {
+          where: { role: "OWNER" },
+          include: { user: { select: { id: true, name: true, email: true, phone: true, createdAt: true } } },
+          take: 1,
+        },
+        _count: { select: { contacts: true, deals: true, planEntries: true } },
+      },
+    });
+    return NextResponse.json(updated, { status: 200 });
   }
 
   const business = await prisma.business.create({
