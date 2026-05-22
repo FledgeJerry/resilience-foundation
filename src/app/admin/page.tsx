@@ -47,9 +47,14 @@ export default function AdminPage() {
           <h1>Users</h1>
           <p style={{ marginTop: "0.25rem" }}>{users.length} registered</p>
         </div>
-        <Link href="/admin/cohort" className="btn btn--secondary" style={{ fontSize: "0.85rem" }}>
-          Entrepreneur Cohort →
-        </Link>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Link href="/admin/cohort" className="btn btn--secondary" style={{ fontSize: "0.85rem" }}>
+            Entrepreneur Cohort →
+          </Link>
+          <Link href="/admin/time" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
+            Program Time Log →
+          </Link>
+        </div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>

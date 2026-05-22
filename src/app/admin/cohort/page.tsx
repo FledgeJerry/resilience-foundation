@@ -530,6 +530,121 @@ function HiresTab({ businessId, records, onRecordsChange }: {
   );
 }
 
+// ─── Time Tab ─────────────────────────────────────────────────────────────────
+
+type TimeRecord = { id: string; date: string; quarter: string; category: string; hours: number; staffMember: string; notes: string | null };
+
+const TIME_CATEGORIES = ["One On One", "EJ Meetup", "99 Problems", "Data/Reporting", "Admin", "Other"];
+
+function TimeTab({ businessId, records, onRecordsChange }: {
+  businessId: string;
+  records: TimeRecord[] | null;
+  onRecordsChange: (r: TimeRecord[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ date: "", quarter: "", category: "One On One", hours: "1", staffMember: "Jerry", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const totalHours = (records ?? []).reduce((s, r) => s + r.hours, 0);
+  const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  async function addRecord() {
+    if (!form.date || !form.hours) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/cohort/${businessId}/time`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      onRecordsChange([await res.json(), ...(records ?? [])]);
+      setForm({ date: "", quarter: "", category: "One On One", hours: "1", staffMember: "Jerry", notes: "" });
+      setAdding(false);
+    }
+    setSaving(false);
+  }
+
+  async function deleteRecord(r: TimeRecord) {
+    setDeletingId(r.id);
+    await fetch(`/api/admin/cohort/${businessId}/time/${r.id}`, { method: "DELETE" });
+    onRecordsChange((records ?? []).filter(x => x.id !== r.id));
+    setDeletingId(null);
+  }
+
+  if (records === null) return <div style={{ padding: "2rem", color: "var(--color-text-muted)" }}>Loading…</div>;
+
+  const byQuarter = records.reduce<Record<string, number>>((acc, r) => {
+    acc[r.quarter] = (acc[r.quarter] ?? 0) + r.hours;
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      {records.length > 0 && (
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "0.9rem 1.1rem", minWidth: "100px" }}>
+            <p style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--color-dome-gold)", lineHeight: 1 }}>{totalHours.toLocaleString()}</p>
+            <p style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>Total hours</p>
+          </div>
+          {Object.entries(byQuarter).sort(([a], [b]) => a.localeCompare(b)).map(([q, h]) => (
+            <div key={q} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "0.9rem 1.1rem", minWidth: "90px" }}>
+              <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--color-limestone)", lineHeight: 1 }}>{h}</p>
+              <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>{q}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!adding ? (
+        <button className="btn btn--secondary" style={{ alignSelf: "flex-start", fontSize: "0.8rem" }} onClick={() => setAdding(true)}>+ Log session</button>
+      ) : (
+        <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-strong)", borderRadius: "8px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>New session</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+            <Field label="Date *"><input style={inpSm} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></Field>
+            <Field label="Hours *"><input style={inpSm} type="number" step="0.25" min="0.25" value={form.hours} onChange={e => setForm(f => ({ ...f, hours: e.target.value }))} /></Field>
+            <Field label="Category">
+              <select style={inpSm} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                {TIME_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
+            <Field label="Staff"><input style={inpSm} value={form.staffMember} onChange={e => setForm(f => ({ ...f, staffMember: e.target.value }))} /></Field>
+            <Field label="Quarter"><input style={inpSm} value={form.quarter} onChange={e => setForm(f => ({ ...f, quarter: e.target.value }))} placeholder="Q2 2025" /></Field>
+          </div>
+          <Field label="Notes"><textarea style={{ ...inpSm, minHeight: "52px", resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></Field>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="btn btn--primary" style={{ fontSize: "0.8rem" }} onClick={addRecord} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+            <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }} onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {records.length === 0 ? (
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem" }}>No sessions logged yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {records.map(r => (
+            <div key={r.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--color-dome-gold)" }}>{r.hours}h</span>
+                  <span style={{ fontSize: "0.78rem", color: "var(--color-limestone)" }}>{r.category}</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{r.staffMember}</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{fmtDate(r.date)}</span>
+                  {r.quarter && <span style={{ fontSize: "0.65rem", padding: "1px 5px", borderRadius: "3px", background: "rgba(232,200,74,0.1)", color: "var(--color-dome-gold)" }}>{r.quarter}</span>}
+                </div>
+                {r.notes && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", marginTop: "0.25rem", fontStyle: "italic" }}>{r.notes}</p>}
+              </div>
+              <button onClick={() => deleteRecord(r)} disabled={deletingId === r.id} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070", padding: "0.2rem 0.4rem", flexShrink: 0 }}>{deletingId === r.id ? "…" : "Delete"}</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Edit Drawer ──────────────────────────────────────────────────────────────
 
 function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
@@ -541,7 +656,8 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
   const [funding, setFunding] = useState<FundingRecord[] | null>(null);
   const [connections, setConnections] = useState<ConnectionRecord[] | null>(null);
   const [hires, setHires] = useState<HireRecord[] | null>(null);
-  const [tab, setTab] = useState<"details" | "contacts" | "funding" | "connections" | "hires">("details");
+  const [timeLogs, setTimeLogs] = useState<TimeRecord[] | null>(null);
+  const [tab, setTab] = useState<"details" | "contacts" | "funding" | "connections" | "hires" | "time">("details");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -558,6 +674,7 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
     fetch(`/api/admin/cohort/${initial.id}/funding`).then(r => r.json()).then(setFunding);
     fetch(`/api/admin/cohort/${initial.id}/connections`).then(r => r.json()).then(setConnections);
     fetch(`/api/admin/cohort/${initial.id}/hires`).then(r => r.json()).then(setHires);
+    fetch(`/api/admin/cohort/${initial.id}/time`).then(r => r.json()).then(setTimeLogs);
   }, [initial.id]);
 
   const owner = entry.members[0]?.user;
@@ -647,6 +764,7 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
           {tabBtn("funding", "Funding", funding?.length)}
           {tabBtn("connections", "Connections", connections?.length)}
           {tabBtn("hires", "Hires", hires?.length)}
+          {tabBtn("time", "Time", timeLogs?.length)}
         </div>
 
         {tab === "details" && (
@@ -731,6 +849,10 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         )}
         {tab === "hires" && (
           <HiresTab businessId={entry.id} records={hires} onRecordsChange={setHires} />
+        )}
+
+        {tab === "time" && (
+          <TimeTab businessId={entry.id} records={timeLogs} onRecordsChange={setTimeLogs} />
         )}
 
         {tab === "contacts" && (
