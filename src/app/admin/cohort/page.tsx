@@ -1023,6 +1023,7 @@ export default function CohortPage() {
   const [selected, setSelected] = useState<Entry | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [stageSaving, setStageSaving] = useState<Record<string, boolean>>({});
+  const [dateSaving, setDateSaving] = useState<Record<string, boolean>>({});
   const [sortCol, setSortCol] = useState<string>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -1041,6 +1042,18 @@ export default function CohortPage() {
     if (!session || session.user.role !== "ADMIN") { router.push("/"); return; }
     load();
   }, [session, status, router, load]);
+
+  async function quickDateConnected(id: string, value: string) {
+    const leapSubmittedAt = value || null;
+    setDateSaving((s) => ({ ...s, [id]: true }));
+    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, leapSubmittedAt } : e));
+    await fetch(`/api/admin/cohort/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leapSubmittedAt }),
+    });
+    setDateSaving((s) => ({ ...s, [id]: false }));
+  }
 
   async function quickStage(e: React.MouseEvent, id: string, stage: string) {
     e.stopPropagation();
@@ -1240,8 +1253,14 @@ export default function CohortPage() {
                       </span>
                     )}
                   </td>
-                  <td style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
-                    {e.leapSubmittedAt ? new Date(e.leapSubmittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                  <td onClick={ev => ev.stopPropagation()}>
+                    <input
+                      type="date"
+                      value={e.leapSubmittedAt ? e.leapSubmittedAt.slice(0, 10) : ""}
+                      onChange={ev => quickDateConnected(e.id, ev.target.value)}
+                      style={{ ...inpSm, width: "120px", fontSize: "0.75rem", cursor: "pointer" }}
+                    />
+                    {dateSaving[e.id] && <span style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", display: "block" }}>Saving…</span>}
                   </td>
                   <td style={{ fontSize: "0.78rem", fontFamily: "monospace" }}>
                     {e.laraId ?? "—"}
@@ -1257,7 +1276,7 @@ export default function CohortPage() {
       </div>
 
       <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-        Click any row to edit. Stage dropdown saves immediately. Imported entrepreneurs can claim their account by registering with their email.
+        Click any row to edit. Stage and date connected save immediately inline. Imported entrepreneurs can claim their account by registering with their email.
       </p>
 
       </>}
