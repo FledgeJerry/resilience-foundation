@@ -50,7 +50,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { ownerName, ownerEmail, ownerPhone, businessName, ...bizFields } = await req.json();
+  const { ownerName, ownerEmail: rawEmail, ownerPhone, businessName, ...bizFields } = await req.json();
+  const ownerEmail: string = (rawEmail ?? "").toLowerCase().trim();
+
   if (!ownerEmail || !businessName) {
     return NextResponse.json({ error: "Email and business name required" }, { status: 400 });
   }
