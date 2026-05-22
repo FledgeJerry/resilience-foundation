@@ -596,6 +596,7 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         isWomanOwned: entry.isWomanOwned,
         isVeteranOwned: entry.isVeteranOwned,
         leapStatus: entry.leapStatus,
+        leapSubmittedAt: entry.leapSubmittedAt || null,
         notes: entry.notes,
         ownerName,
         ownerPhone,
@@ -679,6 +680,7 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
               <Field label="Website"><input style={inpSm} value={entry.website ?? ""} onChange={e => set("website", e.target.value)} /></Field>
               <Field label="NAICS code"><input style={inpSm} value={entry.naicsCode ?? ""} onChange={e => set("naicsCode", e.target.value)} /></Field>
               <Field label="LEAP status"><input style={inpSm} value={entry.leapStatus ?? ""} onChange={e => set("leapStatus", e.target.value)} /></Field>
+              <Field label="Date connected"><input style={inpSm} type="date" value={entry.leapSubmittedAt ? entry.leapSubmittedAt.slice(0, 10) : ""} onChange={e => set("leapSubmittedAt", e.target.value || null)} /></Field>
               <Field label="Revenue (annual $)">
                 <input style={inpSm} type="number" value={entry.annualRevenue ?? ""} onChange={e => set("annualRevenue", e.target.value ? parseFloat(e.target.value) : null)} />
               </Field>
