@@ -5,7 +5,20 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type TimeLog = { id: string; date: string; quarter: string; category: string; hours: number; staffMember: string; notes: string | null };
+type Business = { id: string; name: string };
+type TimeLog = {
+  id: string;
+  date: string;
+  quarter: string;
+  category: string;
+  hours: number;
+  staffMember: string;
+  notes: string | null;
+  business: Business | null;
+};
+
+type SortCol = "date" | "quarter" | "category" | "hours" | "staffMember" | "entrepreneur";
+type SortDir = "asc" | "desc";
 
 const inp: React.CSSProperties = {
   background: "var(--color-surface-raised)", border: "1px solid var(--color-border-strong)",
@@ -15,16 +28,50 @@ const inp: React.CSSProperties = {
 
 const CATEGORIES = ["", "EJ Meetup", "99 Problems", "Data/Reporting", "Admin", "TREK Meeting", "Other"];
 
+function parsedName(log: TimeLog): string {
+  if (log.business) return log.business.name;
+  if (log.notes?.includes("(unmatched)")) return log.notes.replace(" (unmatched)", "");
+  return "";
+}
+
+function isUnmatched(log: TimeLog): boolean {
+  return !log.business && Boolean(log.notes?.includes("(unmatched)"));
+}
+
+function isAssignable(log: TimeLog): boolean {
+  return !log.business;
+}
+
+function sortLogs(logs: TimeLog[], col: SortCol, dir: SortDir): TimeLog[] {
+  return [...logs].sort((a, b) => {
+    let av: string | number = "";
+    let bv: string | number = "";
+    if (col === "date") { av = a.date; bv = b.date; }
+    else if (col === "quarter") { av = a.quarter; bv = b.quarter; }
+    else if (col === "category") { av = a.category; bv = b.category; }
+    else if (col === "hours") { av = a.hours; bv = b.hours; }
+    else if (col === "staffMember") { av = a.staffMember; bv = b.staffMember; }
+    else if (col === "entrepreneur") { av = parsedName(a).toLowerCase(); bv = parsedName(b).toLowerCase(); }
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
 export default function TimePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [logs, setLogs] = useState<TimeLog[]>([]);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterQ, setFilterQ] = useState("");
   const [filterCat, setFilterCat] = useState("");
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ date: "", quarter: "", category: "EJ Meetup", hours: "2", staffMember: "Jerry", notes: "" });
   const [saving, setSaving] = useState(false);
+  const [sortCol, setSortCol] = useState<SortCol>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [assigning, setAssigning] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     setLoading(true);
@@ -40,6 +87,11 @@ export default function TimePage() {
     if (status === "loading") return;
     if (!session || (session.user as { role?: string }).role !== "ADMIN") { router.push("/"); return; }
     load();
+    fetch("/api/admin/cohort")
+      .then(r => r.json())
+      .then((entries: Array<{ id: string; name: string }>) => {
+        setBusinesses(entries.map(e => ({ id: e.id, name: e.name })));
+      });
   }, [session, status, router, load]);
 
   async function addLog() {
@@ -63,6 +115,28 @@ export default function TimePage() {
     setLogs(prev => prev.filter(l => l.id !== id));
   }
 
+  async function assignBusiness(logId: string, inputValue: string) {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    const match = businesses.find(b => b.name.toLowerCase() === trimmed.toLowerCase());
+    if (!match) return;
+    const log = logs.find(l => l.id === logId);
+    const rawNotes = log?.notes ?? null;
+    const cleanNotes = rawNotes?.replace(/\s*\(unmatched\)$/, "").trim() || null;
+    const finalNotes = cleanNotes === match.name ? null : cleanNotes;
+    await fetch(`/api/admin/time/${logId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId: match.id, notes: finalNotes }),
+    });
+    setLogs(prev => prev.map(l => l.id === logId ? { ...l, business: match, notes: finalNotes } : l));
+    setAssigning(s => { const n = { ...s }; delete n[logId]; return n; });
+  }
+
+  function handleAssignChange(logId: string, value: string) {
+    setAssigning(s => ({ ...s, [logId]: value }));
+    const match = businesses.find(b => b.name.toLowerCase() === value.toLowerCase().trim());
+    if (match) assignBusiness(logId, value);
+  }
 
   if (status === "loading") return null;
 
@@ -73,10 +147,26 @@ export default function TimePage() {
   }, {});
   const quarters = [...new Set(logs.map(l => l.quarter).filter(Boolean))].sort();
   const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const unmatchedCount = logs.filter(isUnmatched).length;
+
+  function toggleSort(col: SortCol) {
+    if (col === sortCol) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+
+  const sorted = sortLogs(logs, sortCol, sortDir);
+
+  const thStyle = (col: SortCol): React.CSSProperties => ({
+    padding: "0.5rem 0.75rem", textAlign: "left", fontSize: "0.65rem", fontWeight: 700,
+    textTransform: "uppercase", letterSpacing: "0.08em",
+    color: sortCol === col ? "var(--color-limestone)" : "var(--color-text-muted)",
+    whiteSpace: "nowrap", cursor: "pointer", userSelect: "none",
+  });
+
+  const ind = (col: SortCol) => sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: "860px" }}>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: "1040px" }}>
       <div>
         <span className="eyebrow">Administration</span>
         <h1>Program Time Log</h1>
@@ -86,7 +176,7 @@ export default function TimePage() {
 
       {/* Summary */}
       {logs.length > 0 && (
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-start" }}>
           <div className="card" style={{ padding: "0.9rem 1.25rem", minWidth: "110px" }}>
             <p style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--color-dome-gold)", lineHeight: 1 }}>{totalHours.toLocaleString()}</p>
             <p style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>Total hours</p>
@@ -97,6 +187,12 @@ export default function TimePage() {
               <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>{cat}</p>
             </div>
           ))}
+          {unmatchedCount > 0 && (
+            <div className="card" style={{ padding: "0.9rem 1.25rem", minWidth: "100px" }}>
+              <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "#e07070", lineHeight: 1 }}>{unmatchedCount}</p>
+              <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>Unmatched</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -143,30 +239,68 @@ export default function TimePage() {
       ) : logs.length === 0 ? (
         <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>No entries found.</p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--color-border-strong)" }}>
-                {["Date", "Quarter", "Category", "Hours", "Staff", "Notes", ""].map(h => (
-                  <th key={h} style={{ padding: "0.5rem 0.75rem", textAlign: "left", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map(l => (
-                <tr key={l.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                  <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>{fmtDate(l.date)}</td>
-                  <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{l.quarter}</td>
-                  <td style={{ padding: "0.5rem 0.75rem" }}>{l.category}</td>
-                  <td style={{ padding: "0.5rem 0.75rem", fontWeight: 700, color: "var(--color-dome-gold)" }}>{l.hours}</td>
-                  <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{l.staffMember}</td>
-                  <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)", fontStyle: "italic", maxWidth: "220px" }}>{l.notes ?? ""}</td>
-                  <td style={{ padding: "0.5rem 0.75rem" }}><button onClick={() => deleteLog(l.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070" }}>Delete</button></td>
+        <>
+          <datalist id="biz-list">
+            {businesses.map(b => <option key={b.id} value={b.name} />)}
+          </datalist>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--color-border-strong)" }}>
+                  <th style={thStyle("date")} onClick={() => toggleSort("date")}>Date{ind("date")}</th>
+                  <th style={thStyle("quarter")} onClick={() => toggleSort("quarter")}>Quarter{ind("quarter")}</th>
+                  <th style={thStyle("category")} onClick={() => toggleSort("category")}>Category{ind("category")}</th>
+                  <th style={thStyle("hours")} onClick={() => toggleSort("hours")}>Hours{ind("hours")}</th>
+                  <th style={thStyle("staffMember")} onClick={() => toggleSort("staffMember")}>Staff{ind("staffMember")}</th>
+                  <th style={thStyle("entrepreneur")} onClick={() => toggleSort("entrepreneur")}>Entrepreneur{ind("entrepreneur")}</th>
+                  <th style={{ padding: "0.5rem 0.75rem", textAlign: "left", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>Notes</th>
+                  <th style={{ padding: "0.5rem 0.75rem" }}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {sorted.map(l => {
+                  const unmatched = isUnmatched(l);
+                  const assignable = isAssignable(l);
+                  const displayName = parsedName(l);
+                  const assignVal = assigning[l.id] ?? (assignable ? displayName : "");
+                  const rowNotes = l.notes && !l.notes.includes("(unmatched)") ? l.notes : null;
+                  return (
+                    <tr key={l.id} style={{ borderBottom: "1px solid var(--color-border)", background: unmatched ? "rgba(224,112,112,0.04)" : undefined }}>
+                      <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>{fmtDate(l.date)}</td>
+                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{l.quarter}</td>
+                      <td style={{ padding: "0.5rem 0.75rem" }}>{l.category}</td>
+                      <td style={{ padding: "0.5rem 0.75rem", fontWeight: 700, color: "var(--color-dome-gold)" }}>{l.hours}</td>
+                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{l.staffMember}</td>
+                      <td style={{ padding: "0.5rem 0.75rem", minWidth: "160px" }}>
+                        {l.business ? (
+                          <span style={{ color: "var(--color-limestone)" }}>{l.business.name}</span>
+                        ) : (
+                          <input
+                            list="biz-list"
+                            value={assignVal}
+                            onChange={e => handleAssignChange(l.id, e.target.value)}
+                            onBlur={e => assignBusiness(l.id, e.target.value)}
+                            placeholder="assign…"
+                            style={{
+                              ...inp,
+                              padding: "0.25rem 0.5rem",
+                              width: "100%",
+                              fontSize: "0.75rem",
+                              color: unmatched ? "#e07070" : "var(--color-text-muted)",
+                              opacity: unmatched ? 1 : 0.65,
+                            }}
+                          />
+                        )}
+                      </td>
+                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)", fontStyle: "italic", maxWidth: "180px" }}>{rowNotes ?? ""}</td>
+                      <td style={{ padding: "0.5rem 0.75rem" }}><button onClick={() => deleteLog(l.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070" }}>Delete</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

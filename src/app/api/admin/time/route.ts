@@ -16,6 +16,7 @@ export async function GET(req: Request) {
       ...(quarter ? { quarter: { contains: quarter, mode: "insensitive" } } : {}),
       ...(category ? { category: { contains: category, mode: "insensitive" } } : {}),
     },
+    include: { business: { select: { id: true, name: true } } },
     orderBy: { date: "desc" },
   });
   return NextResponse.json(logs);
