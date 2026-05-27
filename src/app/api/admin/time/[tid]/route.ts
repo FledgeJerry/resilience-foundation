@@ -14,6 +14,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
     data: {
       ...(body.businessId !== undefined ? { businessId: body.businessId } : {}),
       ...(body.notes !== undefined ? { notes: body.notes ?? null } : {}),
+      ...(body.date !== undefined ? { date: new Date(body.date) } : {}),
+      ...(body.quarter !== undefined ? { quarter: body.quarter } : {}),
+      ...(body.category !== undefined ? { category: body.category } : {}),
+      ...(body.hours !== undefined ? { hours: parseFloat(body.hours) } : {}),
+      ...(body.staffMember !== undefined ? { staffMember: body.staffMember } : {}),
     },
     include: { business: { select: { id: true, name: true } } },
   });

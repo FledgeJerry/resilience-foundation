@@ -72,6 +72,8 @@ export default function TimePage() {
   const [sortCol, setSortCol] = useState<SortCol>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [assigning, setAssigning] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ date: "", quarter: "", category: "", hours: "", staffMember: "", notes: "" });
 
   const load = useCallback(() => {
     setLoading(true);
@@ -137,6 +139,30 @@ export default function TimePage() {
     setAssigning(s => ({ ...s, [logId]: value }));
     const match = businesses.find(b => b.name.toLowerCase() === value.toLowerCase().trim());
     if (match) assignBusiness(logId, value);
+  }
+
+  function startEdit(l: TimeLog) {
+    setEditing(l.id);
+    setEditForm({
+      date: new Date(l.date).toISOString().slice(0, 10),
+      quarter: l.quarter,
+      category: l.category,
+      hours: String(l.hours),
+      staffMember: l.staffMember,
+      notes: l.notes && !l.notes.includes("(unmatched)") ? l.notes : "",
+    });
+  }
+
+  async function saveEdit(id: string) {
+    setSaving(true);
+    const res = await fetch(`/api/admin/time/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    const updated = await res.json();
+    setLogs(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l));
+    setEditing(null);
+    setSaving(false);
   }
 
   if (status === "loading") return null;
@@ -265,6 +291,36 @@ export default function TimePage() {
                   const displayName = parsedName(l);
                   const assignVal = assigning[l.id] ?? (assignable ? displayName : "");
                   const rowNotes = l.notes && !l.notes.includes("(unmatched)") ? l.notes : null;
+                  const isEditing = editing === l.id;
+
+                  if (isEditing) {
+                    return (
+                      <tr key={l.id} style={{ borderBottom: "1px solid var(--color-border)", background: "rgba(255,255,255,0.03)" }}>
+                        <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "120px" }} type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} /></td>
+                        <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "80px" }} value={editForm.quarter} onChange={e => setEditForm(f => ({ ...f, quarter: e.target.value }))} placeholder="Q2 2025" /></td>
+                        <td style={{ padding: "0.4rem 0.5rem" }}>
+                          <select style={{ ...inp, width: "130px" }} value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}>
+                            {CATEGORIES.filter(Boolean).map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "60px" }} type="number" step="0.25" value={editForm.hours} onChange={e => setEditForm(f => ({ ...f, hours: e.target.value }))} /></td>
+                        <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "90px" }} value={editForm.staffMember} onChange={e => setEditForm(f => ({ ...f, staffMember: e.target.value }))} /></td>
+                        <td style={{ padding: "0.4rem 0.5rem" }}>
+                          {l.business ? (
+                            <span style={{ color: "var(--color-text-muted)", fontSize: "0.75rem" }}>{l.business.name}</span>
+                          ) : (
+                            <input list="biz-list" value={assignVal} onChange={e => handleAssignChange(l.id, e.target.value)} onBlur={e => assignBusiness(l.id, e.target.value)} placeholder="assign…" style={{ ...inp, padding: "0.25rem 0.5rem", width: "100%", fontSize: "0.75rem" }} />
+                          )}
+                        </td>
+                        <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "140px" }} value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="notes…" /></td>
+                        <td style={{ padding: "0.4rem 0.5rem", whiteSpace: "nowrap" }}>
+                          <button onClick={() => saveEdit(l.id)} disabled={saving} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "var(--color-dome-gold)", marginRight: "0.5rem" }}>{saving ? "…" : "Save"}</button>
+                          <button onClick={() => setEditing(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Cancel</button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   return (
                     <tr key={l.id} style={{ borderBottom: "1px solid var(--color-border)", background: unmatched ? "rgba(224,112,112,0.04)" : undefined }}>
                       <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>{fmtDate(l.date)}</td>
@@ -294,7 +350,10 @@ export default function TimePage() {
                         )}
                       </td>
                       <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)", fontStyle: "italic", maxWidth: "180px" }}>{rowNotes ?? ""}</td>
-                      <td style={{ padding: "0.5rem 0.75rem" }}><button onClick={() => deleteLog(l.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070" }}>Delete</button></td>
+                      <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>
+                        <button onClick={() => startEdit(l)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "var(--color-text-muted)", marginRight: "0.5rem" }}>Edit</button>
+                        <button onClick={() => deleteLog(l.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#e07070" }}>Delete</button>
+                      </td>
                     </tr>
                   );
                 })}
