@@ -80,7 +80,8 @@ export default function TimePage() {
     if (filterCat) params.set("category", filterCat);
     fetch(`/api/admin/time?${params}`)
       .then(r => r.json())
-      .then(d => { setLogs(d); setLoading(false); });
+      .then(d => { setLogs(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, [filterQ, filterCat]);
 
   useEffect(() => {
