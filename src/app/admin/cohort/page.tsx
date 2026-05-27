@@ -41,6 +41,7 @@ type Entry = {
   members: { user: Owner }[];
   contacts?: Contact[];
   _count: { contacts: number; deals: number; planEntries: number };
+  trekHours: number;
 };
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -1210,6 +1211,7 @@ export default function CohortPage() {
       case "date":     return e.leapSubmittedAt ?? "";
       case "laraId":   return (e.laraId ?? "").toLowerCase();
       case "laraDate": return e.laraDate ?? "";
+      case "hours":    return e.trekHours;
       default:         return null;
     }
   }
@@ -1313,6 +1315,7 @@ export default function CohortPage() {
                 ["date",     "Date Connected"],
                 ["laraId",   "LARA ID"],
                 ["laraDate", "LARA Date"],
+                ["hours",    "Hours"],
               ] as [string, string][]).map(([col, label]) => (
                 <th key={col} onClick={() => toggleSort(col)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
                   {label}{" "}
@@ -1389,6 +1392,9 @@ export default function CohortPage() {
                   </td>
                   <td style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
                     {e.laraDate ? new Date(e.laraDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                  </td>
+                  <td style={{ fontSize: "0.85rem", fontWeight: e.trekHours > 0 ? 700 : 400, color: e.trekHours > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                    {e.trekHours > 0 ? `${e.trekHours}h` : "—"}
                   </td>
                 </tr>
               );

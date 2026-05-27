@@ -41,7 +41,14 @@ export async function GET(req: Request) {
     orderBy: { updatedAt: "desc" },
   });
 
-  return NextResponse.json(businesses);
+  const hourRows = await prisma.trekTimeLog.groupBy({
+    by: ["businessId"],
+    _sum: { hours: true },
+    where: { businessId: { not: null } },
+  });
+  const hoursMap = Object.fromEntries(hourRows.map(r => [r.businessId, r._sum.hours ?? 0]));
+
+  return NextResponse.json(businesses.map(b => ({ ...b, trekHours: hoursMap[b.id] ?? 0 })));
 }
 
 export async function POST(req: Request) {
