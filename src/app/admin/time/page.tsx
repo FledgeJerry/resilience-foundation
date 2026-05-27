@@ -223,6 +223,7 @@ export default function TimePage() {
             <div key={cat} className="card" style={{ padding: "0.9rem 1.25rem", minWidth: "100px" }}>
               <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--color-limestone)", lineHeight: 1 }}>{h}</p>
               <p style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>{cat}</p>
+              <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--color-dome-gold)", marginTop: "0.15rem" }}>{totalHours > 0 ? Math.round((h / totalHours) * 100) : 0}%</p>
             </div>
           ))}
           {unmatchedCount > 0 && (

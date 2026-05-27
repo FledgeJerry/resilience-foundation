@@ -1306,16 +1306,16 @@ export default function CohortPage() {
               {([
                 ["name",     "Business / Entrepreneur"],
                 ["email",    "Contact"],
+                ["laraId",   "LARA ID"],
+                ["laraDate", "LARA Date"],
+                ["revenue",  "Revenue"],
+                ["hours",    "Hours"],
                 ["stage",    "Stage"],
                 ["industry", "Industry"],
                 ["county",   "Location"],
-                ["revenue",  "Revenue"],
                 ["fte",      "FTEs"],
                 ["leap",     "LEAP"],
                 ["date",     "Date Connected"],
-                ["laraId",   "LARA ID"],
-                ["laraDate", "LARA Date"],
-                ["hours",    "Hours"],
               ] as [string, string][]).map(([col, label]) => (
                 <th key={col} onClick={() => toggleSort(col)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
                   {label}{" "}
@@ -1347,6 +1347,18 @@ export default function CohortPage() {
                       </>
                     )}
                   </td>
+                  <td style={{ fontSize: "0.78rem", fontFamily: "monospace" }}>
+                    {e.laraId ?? "—"}
+                  </td>
+                  <td style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                    {e.laraDate ? new Date(e.laraDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                  </td>
+                  <td style={{ fontSize: "0.85rem" }}>
+                    {e.annualRevenue != null ? `$${e.annualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
+                  </td>
+                  <td style={{ fontSize: "0.85rem", fontWeight: e.trekHours > 0 ? 700 : 400, color: e.trekHours > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                    {e.trekHours > 0 ? `${e.trekHours}h` : "—"}
+                  </td>
                   <td onClick={ev => ev.stopPropagation()}>
                     <select value={e.stage} onChange={ev => quickStage(ev as unknown as React.MouseEvent, e.id, ev.target.value)}
                       style={{ ...inpSm, width: "auto", cursor: "pointer" }}>
@@ -1359,9 +1371,6 @@ export default function CohortPage() {
                     {e.county && <p>{e.county} Co.</p>}
                     {(e.city || e.state) && <p style={{ color: "var(--color-text-muted)" }}>{[e.city, e.state].filter(Boolean).join(", ")}</p>}
                     {!e.county && !e.city && !e.state && "—"}
-                  </td>
-                  <td style={{ fontSize: "0.85rem" }}>
-                    {e.annualRevenue != null ? `$${e.annualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
                   </td>
                   <td style={{ fontSize: "0.8rem" }}>
                     {e.currentFte != null && <span>{e.currentFte} now</span>}
@@ -1386,15 +1395,6 @@ export default function CohortPage() {
                       style={{ ...inpSm, width: "120px", fontSize: "0.75rem", cursor: "pointer" }}
                     />
                     {dateSaving[e.id] && <span style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", display: "block" }}>Saving…</span>}
-                  </td>
-                  <td style={{ fontSize: "0.78rem", fontFamily: "monospace" }}>
-                    {e.laraId ?? "—"}
-                  </td>
-                  <td style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
-                    {e.laraDate ? new Date(e.laraDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
-                  </td>
-                  <td style={{ fontSize: "0.85rem", fontWeight: e.trekHours > 0 ? 700 : 400, color: e.trekHours > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)", whiteSpace: "nowrap" }}>
-                    {e.trekHours > 0 ? `${e.trekHours}h` : "—"}
                   </td>
                 </tr>
               );
