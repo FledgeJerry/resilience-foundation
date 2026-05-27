@@ -12,7 +12,6 @@ export async function GET(req: Request) {
 
   const logs = await prisma.trekTimeLog.findMany({
     where: {
-      businessId: null,
       ...(quarter ? { quarter: { contains: quarter, mode: "insensitive" } } : {}),
       ...(category ? { category: { contains: category, mode: "insensitive" } } : {}),
     },
