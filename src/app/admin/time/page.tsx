@@ -26,7 +26,7 @@ const inp: React.CSSProperties = {
   fontFamily: "var(--font-sans)", fontSize: "0.8rem", outline: "none",
 };
 
-const CATEGORIES = ["", "EJ Meetup", "99 Problems", "Data/Reporting", "Admin", "TREK Meeting", "Other"];
+const CATEGORIES = ["", "EJ Meetup", "99 Problems but a Pitch Ain't One", "One on One Consulting", "Admin and Reporting", "TREK Meeting", "Other"];
 
 function parsedName(log: TimeLog): string {
   if (log.business) return log.business.name;
