@@ -7,6 +7,7 @@ import Link from "next/link";
 import { HANDBOOK } from "@/lib/handbook-content";
 import type { HandbookField } from "@/lib/handbook-content";
 import ProposalsPanel from "@/components/ProposalsPanel";
+import RegionPulsePanel from "@/components/RegionPulsePanel";
 
 type Coop = { id: string; name: string; role: string; isPublic?: boolean; website?: string; contactEmail?: string; phone?: string };
 type Member = { id: string; role: string; user: { id: string; name: string | null; email: string } };
@@ -517,6 +518,28 @@ function HandbookPageInner() {
               </span>
             </button>
           )}
+          {/* Market Intelligence — special section */}
+          {coopId && (
+            <button
+              onClick={() => setActiveSection("market")}
+              style={{
+                background: activeSection === "market" ? "var(--color-surface-raised)" : "transparent",
+                border: activeSection === "market" ? "1px solid var(--color-border-strong)" : "1px solid transparent",
+                borderRadius: "6px",
+                padding: "0.5rem 0.75rem",
+                textAlign: "left",
+                cursor: "pointer",
+                width: "100%",
+              }}
+            >
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: activeSection === "market" ? "var(--color-dome-gold)" : "var(--color-text-muted)", display: "block" }}>
+                Data
+              </span>
+              <span style={{ fontSize: "0.8rem", color: activeSection === "market" ? "var(--color-limestone)" : "var(--color-text-secondary)", display: "block", lineHeight: 1.3 }}>
+                Market Intelligence
+              </span>
+            </button>
+          )}
         </nav>
       </aside>
 
@@ -524,6 +547,24 @@ function HandbookPageInner() {
       <div style={{ flex: 1, minWidth: 0 }}>
         {activeSection === "proposals" && coopId ? (
           <ProposalsPanel entityType="COOP" entityId={coopId} />
+        ) : activeSection === "market" && coopId ? (
+          <div>
+            <span className="eyebrow">Data</span>
+            <h1 style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>Market Intelligence</h1>
+            <p style={{ marginBottom: "1.5rem", color: "var(--color-text-secondary)" }}>
+              U.S. Census data for your co-op&apos;s service area — population, income, employment,
+              housing, and education. Use it to size your market, make your case to supporters,
+              and understand the community you&apos;re building for.
+            </p>
+            <RegionPulsePanel
+              zip={entries["MARKET-ZIP"] ?? null}
+              bizType="COOP"
+              onZipChange={isAdminView ? undefined : (zip) => {
+                handleChange("MARKET-ZIP", zip);
+                save("MARKET-ZIP", zip);
+              }}
+            />
+          </div>
         ) : (
         <>
         <div style={{ marginBottom: "2rem" }}>

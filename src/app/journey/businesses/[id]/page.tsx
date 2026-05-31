@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PlanTab from "./PlanTab";
 import DocumentsTab from "./DocumentsTab";
+import RegionPulsePanel from "@/components/RegionPulsePanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ type Transaction = {
 type Business = {
   id: string; name: string; description: string | null; type: BusinessType;
   stage: BusinessStage; industry: string | null; city: string | null;
-  state: string | null; website: string | null; notes: string | null;
+  state: string | null; zip: string | null; website: string | null; notes: string | null;
   problemStatement: string | null; targetMarket: string | null; uniqueValue: string | null;
   role: string;
   contacts: Contact[]; deals: Deal[]; transactions: Transaction[];
@@ -72,9 +73,10 @@ function fmtDate(s: string) {
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type TabId = "overview" | "contacts" | "deals" | "financials" | "plan" | "documents";
+type TabId = "overview" | "market" | "contacts" | "deals" | "financials" | "plan" | "documents";
 const TABS: { id: TabId; label: string; minStage?: number }[] = [
   { id: "overview", label: "Overview" },
+  { id: "market", label: "Market", minStage: 2 },
   { id: "contacts", label: "Contacts", minStage: 3 },
   { id: "deals", label: "Deals", minStage: 5 },
   { id: "financials", label: "Financials", minStage: 7 },
@@ -97,6 +99,7 @@ function OverviewTab({
     industry: biz.industry ?? "",
     city: biz.city ?? "",
     state: biz.state ?? "",
+    zip: biz.zip ?? "",
     website: biz.website ?? "",
     notes: biz.notes ?? "",
     problemStatement: biz.problemStatement ?? "",
@@ -147,6 +150,18 @@ function OverviewTab({
         <label>
           State
           <input value={fields.state} onChange={(e) => setFields((f) => ({ ...f, state: e.target.value }))} maxLength={2} />
+        </label>
+      </div>
+      <div className="form-row form-row--3col">
+        <label>
+          ZIP code
+          <input
+            value={fields.zip}
+            onChange={(e) => setFields((f) => ({ ...f, zip: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
+            placeholder="e.g. 48912"
+            inputMode="numeric"
+            maxLength={5}
+          />
         </label>
       </div>
       <div className="form-row">
@@ -621,6 +636,24 @@ function FinancialsTab({ biz, onSave }: { biz: Business; onSave: (data: Partial<
   );
 }
 
+// ── Market Tab ────────────────────────────────────────────────────────────────
+
+function MarketTab({ biz, onSave }: { biz: Business; onSave: (data: Partial<Business>) => Promise<void> }) {
+  async function handleZipChange(zip: string) {
+    await onSave({ zip });
+  }
+  return (
+    <div className="tab-panel">
+      <h2>Market Intelligence</h2>
+      <p className="tab-panel__intro">
+        Census data for your business&apos;s ZIP code — population, income, employment, housing costs,
+        and education. Use this to size your market and shape your pitch.
+      </p>
+      <RegionPulsePanel zip={biz.zip} bizType={biz.type} onZipChange={handleZipChange} />
+    </div>
+  );
+}
+
 // ── Stage Tracker ─────────────────────────────────────────────────────────────
 
 function StageTracker({
@@ -750,6 +783,7 @@ export default function BusinessWorkbookPage({ params }: { params: Promise<{ id:
         {/* Tab content */}
         <div className="workbook-body">
           {activeTab === "overview" && <OverviewTab biz={biz} onSave={save} />}
+          {activeTab === "market" && <MarketTab biz={biz} onSave={save} />}
           {activeTab === "contacts" && <ContactsTab biz={biz} onSave={save} />}
           {activeTab === "deals" && <DealsTab biz={biz} onSave={save} />}
           {activeTab === "financials" && <FinancialsTab biz={biz} onSave={save} />}

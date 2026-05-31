@@ -42,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const body = await req.json();
   const allowed = [
-    "name", "description", "type", "stage", "industry", "city", "state", "website",
+    "name", "description", "type", "stage", "industry", "city", "state", "zip", "website",
     "notes", "problemStatement", "targetMarket", "uniqueValue",
   ];
   const data: Record<string, unknown> = {};

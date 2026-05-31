@@ -17,14 +17,45 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: "resilience.foundation — Build What You Own",
-  description: "A guided platform for building worker-owned cooperatives.",
+  title: { default: "resilience.foundation — Build What You Own", template: "%s | resilience.foundation" },
+  description: "A guided platform for founding worker-owned cooperatives and building community resilience in Lansing, Michigan and beyond. Co-op handbook wizard, housing roadmap, entrepreneurial journey, governance library.",
+  keywords: ["worker cooperative", "co-op handbook", "worker ownership", "Lansing cooperative", "build a co-op", "community resilience", "cooperative economy", "housing roadmap", "entrepreneurial journey"],
+  metadataBase: new URL("https://resilience.foundation"),
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "resilience.foundation",
+    title: "resilience.foundation — Build What You Own",
+    description: "A guided platform for founding worker-owned cooperatives and building community resilience. Co-op handbook, housing, entrepreneurial journey, and more.",
+    url: "https://resilience.foundation",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "resilience.foundation — Build What You Own",
+    description: "A guided platform for founding worker-owned cooperatives and building community resilience.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${ibmPlexSans.variable} ${merriweather.variable}`}>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "resilience.foundation",
+            url: "https://resilience.foundation",
+            description: "A guided platform for founding worker-owned cooperatives and building community resilience.",
+            parentOrganization: {
+              "@type": "Organization",
+              name: "The Fledge",
+              url: "https://thefledge.com",
+            },
+            address: { "@type": "PostalAddress", streetAddress: "1300 Eureka St", addressLocality: "Lansing", addressRegion: "MI", postalCode: "48912", addressCountry: "US" },
+          }) }}
+        />
         <SessionProvider>
           <Nav />
           <main style={{ flex: 1, maxWidth: "1100px", margin: "0 auto", width: "100%", padding: "2rem 1.5rem" }}>

@@ -316,6 +316,7 @@ model Business {
   industry    String?
   city        String?
   state       String?
+  zip         String?
   website     String?
   notes       String?
 
@@ -540,6 +541,14 @@ model Vote {
   @@unique([proposalId, userId])
 
   createdAt DateTime @default(now())
+}
+
+// ── RegionPulse Cache ─────────────────────────────────────────────────────────
+
+model RegionPulseCache {
+  zip       String   @id
+  data      Json
+  fetchedAt DateTime @default(now())
 }
 
 // ── Co-op Handbook ────────────────────────────────────────────────────────────

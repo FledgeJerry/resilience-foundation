@@ -48,11 +48,14 @@ export default function AdminPage() {
           <p style={{ marginTop: "0.25rem" }}>{users.length} registered</p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Link href="/admin/pipeline" className="btn btn--primary" style={{ fontSize: "0.85rem" }}>
+            Pipeline &amp; Proposals →
+          </Link>
           <Link href="/admin/cohort" className="btn btn--secondary" style={{ fontSize: "0.85rem" }}>
-            Entrepreneur Cohort →
+            Cohort →
           </Link>
           <Link href="/admin/time" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
-            Program Time Log →
+            Time Log →
           </Link>
         </div>
       </div>
