@@ -54,6 +54,12 @@ export default function AdminPage() {
           <Link href="/admin/cohort" className="btn btn--secondary" style={{ fontSize: "0.85rem" }}>
             Cohort →
           </Link>
+          <Link href="/admin/cohorts" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
+            Cohorts →
+          </Link>
+          <Link href="/admin/map" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
+            Map →
+          </Link>
           <Link href="/admin/time" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
             Time Log →
           </Link>

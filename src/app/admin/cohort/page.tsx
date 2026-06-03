@@ -33,11 +33,12 @@ type Owner = { id: string; name: string | null; email: string; phone: string | n
 type Contact = { id: string; type: string; name: string; email: string | null; phone: string | null; company: string | null; notes: string | null };
 type Entry = {
   id: string; name: string; stage: string; industry: string | null;
-  city: string | null; state: string | null; county: string | null;
-  website: string | null; formationType: string | null; laraId: string | null; laraDate: string | null; naicsCode: string | null;
+  street: string | null; city: string | null; state: string | null; zip: string | null; county: string | null;
+  website: string | null; formationType: string | null; laraId: string | null; laraDate: string | null; formationDate: string | null; naicsCode: string | null;
   currentFte: number | null; plannedFte: number | null; annualRevenue: number | null;
-  isMinorityOwned: boolean; isWomanOwned: boolean; isVeteranOwned: boolean;
+  isMinorityOwned: boolean; isWomanOwned: boolean; isVeteranOwned: boolean; isDisabilityOwned: boolean;
   leapStatus: string | null; leapSubmittedAt: string | null; notes: string | null;
+  cohortId: string | null;
   members: { user: Owner }[];
   contacts?: Contact[];
   _count: { contacts: number; deals: number; planEntries: number };
@@ -663,6 +664,11 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [cohorts, setCohorts] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/admin/cohorts").then(r => r.json()).then(setCohorts);
+  }, []);
 
   // Load full details (with contacts) on open
   useEffect(() => {
@@ -699,9 +705,13 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         name: entry.name,
         stage: entry.stage,
         industry: entry.industry,
+        street: entry.street,
+        zip: entry.zip,
         city: entry.city,
         state: entry.state,
         county: entry.county,
+        lat: null,
+        lng: null,
         website: entry.website,
         formationType: entry.formationType,
         laraId: entry.laraId,
@@ -710,9 +720,12 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         currentFte: entry.currentFte,
         plannedFte: entry.plannedFte,
         annualRevenue: entry.annualRevenue,
+        formationDate: entry.formationDate || null,
         isMinorityOwned: entry.isMinorityOwned,
         isWomanOwned: entry.isWomanOwned,
         isVeteranOwned: entry.isVeteranOwned,
+        isDisabilityOwned: entry.isDisabilityOwned,
+        cohortId: entry.cohortId || null,
         leapStatus: entry.leapStatus,
         leapSubmittedAt: entry.leapSubmittedAt || null,
         notes: entry.notes,
@@ -793,12 +806,21 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
               <Field label="Formation type"><input style={inpSm} value={entry.formationType ?? ""} onChange={e => set("formationType", e.target.value)} placeholder="LLC, Sole Prop…" /></Field>
               <Field label="LARA ID"><input style={inpSm} value={entry.laraId ?? ""} onChange={e => set("laraId", e.target.value)} placeholder="B12345678" /></Field>
               <Field label="LARA date"><input style={inpSm} type="date" value={entry.laraDate ? entry.laraDate.slice(0, 10) : ""} onChange={e => set("laraDate", e.target.value || null)} /></Field>
+              <Field label="Formation date"><input style={inpSm} type="date" value={entry.formationDate ? entry.formationDate.slice(0, 10) : ""} onChange={e => set("formationDate", e.target.value || null)} /></Field>
+              <Field label="Street"><input style={inpSm} value={entry.street ?? ""} onChange={e => set("street", e.target.value)} placeholder="123 Main St" /></Field>
+              <Field label="Zip"><input style={inpSm} value={entry.zip ?? ""} onChange={e => set("zip", e.target.value)} placeholder="48912" /></Field>
               <Field label="City"><input style={inpSm} value={entry.city ?? ""} onChange={e => set("city", e.target.value)} /></Field>
               <Field label="State"><input style={inpSm} value={entry.state ?? ""} onChange={e => set("state", e.target.value)} /></Field>
               <Field label="County"><input style={inpSm} value={entry.county ?? ""} onChange={e => set("county", e.target.value)} /></Field>
               <Field label="Website"><input style={inpSm} value={entry.website ?? ""} onChange={e => set("website", e.target.value)} /></Field>
               <Field label="NAICS code"><input style={inpSm} value={entry.naicsCode ?? ""} onChange={e => set("naicsCode", e.target.value)} /></Field>
               <Field label="LEAP status"><input style={inpSm} value={entry.leapStatus ?? ""} onChange={e => set("leapStatus", e.target.value)} /></Field>
+              <Field label="Cohort">
+                <select style={inpSm} value={entry.cohortId ?? ""} onChange={e => set("cohortId", e.target.value || null)}>
+                  <option value="">— none —</option>
+                  {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </Field>
               <Field label="Date connected"><input style={inpSm} type="date" value={entry.leapSubmittedAt ? entry.leapSubmittedAt.slice(0, 10) : ""} onChange={e => set("leapSubmittedAt", e.target.value || null)} /></Field>
               <Field label="Revenue (annual $)">
                 <input style={inpSm} type="number" value={entry.annualRevenue ?? ""} onChange={e => set("annualRevenue", e.target.value ? parseFloat(e.target.value) : null)} />
@@ -811,7 +833,7 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
 
             {/* Ownership flags */}
             <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-              {([["isMinorityOwned", "Minority owned"], ["isWomanOwned", "Woman owned"], ["isVeteranOwned", "Veteran owned"]] as [keyof Entry, string][]).map(([k, label]) => (
+              {([["isMinorityOwned", "Minority owned"], ["isWomanOwned", "Woman owned"], ["isVeteranOwned", "Veteran owned"], ["isDisabilityOwned", "Disability owned"]] as [keyof Entry, string][]).map(([k, label]) => (
                 <label key={k} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", cursor: "pointer" }}>
                   <input type="checkbox" checked={!!entry[k]} onChange={e => set(k, e.target.checked)} />
                   {label}
