@@ -1,0 +1,25 @@
+-- AlterTable
+ALTER TABLE "Business" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION,
+ADD COLUMN     "street" TEXT;
+
+-- AlterTable
+ALTER TABLE "Coop" ADD COLUMN     "city" TEXT,
+ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION,
+ADD COLUMN     "state" TEXT,
+ADD COLUMN     "street" TEXT,
+ADD COLUMN     "zip" TEXT;
+
+-- AlterTable
+ALTER TABLE "HousingProject" ADD COLUMN     "city" TEXT,
+ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION,
+ADD COLUMN     "state" TEXT,
+ADD COLUMN     "zip" TEXT;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION,
+ADD COLUMN     "street" TEXT,
+ADD COLUMN     "zip" TEXT;

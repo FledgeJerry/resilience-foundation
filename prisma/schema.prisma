@@ -26,8 +26,12 @@ model User {
   createdAt     DateTime  @default(now())
 
   // Demographics
+  street          String?
   city            String?
   state           String?
+  zip             String?
+  lat             Float?
+  lng             Float?
   ageRange        String?
   gender          String?
   raceEthnicity   String?
@@ -63,6 +67,12 @@ model Coop {
   website      String?
   contactEmail String?
   phone        String?
+  street       String?
+  city         String?
+  state        String?
+  zip          String?
+  lat          Float?
+  lng          Float?
 
   members         CoopMember[]
   handbookEntries HandbookEntry[]
@@ -143,6 +153,11 @@ model HousingProject {
 
   // Property
   address         String?
+  city            String?
+  state           String?
+  zip             String?
+  lat             Float?
+  lng             Float?
   purchasePrice   Float?
   renovationCost  Float?
   postRenoValue   Float?
@@ -314,9 +329,12 @@ model Business {
   type        BusinessType  @default(UNDECIDED)
   stage       BusinessStage @default(IDEA)
   industry    String?
+  street      String?
   city        String?
   state       String?
   zip         String?
+  lat         Float?
+  lng         Float?
   website     String?
   notes       String?
 
