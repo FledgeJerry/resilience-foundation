@@ -13,6 +13,7 @@ export async function GET(req: Request) {
   const stage = searchParams.get("stage") ?? "";
   const industry = searchParams.get("industry") ?? "";
   const leapStatus = searchParams.get("leapStatus") ?? "";
+  const cohortId = searchParams.get("cohortId") ?? "";
 
   const businesses = await prisma.business.findMany({
     where: {
@@ -20,6 +21,7 @@ export async function GET(req: Request) {
       ...(stage ? { stage: stage as never } : {}),
       ...(industry ? { industry: { contains: industry, mode: "insensitive" } } : {}),
       ...(leapStatus ? { leapStatus: { contains: leapStatus, mode: "insensitive" } } : {}),
+      ...(cohortId ? { cohortId } : {}),
       ...(q ? {
         OR: [
           { name: { contains: q, mode: "insensitive" } },
@@ -36,6 +38,7 @@ export async function GET(req: Request) {
         include: { user: { select: { id: true, name: true, email: true, phone: true, createdAt: true } } },
         take: 1,
       },
+      cohort: { select: { id: true, name: true } },
       _count: { select: { contacts: true, deals: true, planEntries: true } },
     },
     orderBy: { updatedAt: "desc" },

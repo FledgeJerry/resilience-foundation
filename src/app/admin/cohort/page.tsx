@@ -39,6 +39,7 @@ type Entry = {
   isMinorityOwned: boolean; isWomanOwned: boolean; isVeteranOwned: boolean; isDisabilityOwned: boolean;
   leapStatus: string | null; leapSubmittedAt: string | null; notes: string | null;
   cohortId: string | null;
+  cohort: { id: string; name: string } | null;
   members: { user: Owner }[];
   contacts?: Contact[];
   _count: { contacts: number; deals: number; planEntries: number };
@@ -1163,6 +1164,8 @@ export default function CohortPage() {
   const [q, setQ] = useState("");
   const [filterStage, setFilterStage] = useState("");
   const [filterIndustry, setFilterIndustry] = useState("");
+  const [filterCohort, setFilterCohort] = useState("");
+  const [cohorts, setCohorts] = useState<{ id: string; name: string }[]>([]);
   const [selected, setSelected] = useState<Entry | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [stageSaving, setStageSaving] = useState<Record<string, boolean>>({});
@@ -1170,21 +1173,26 @@ export default function CohortPage() {
   const [sortCol, setSortCol] = useState<string>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const load = useCallback((query = q, stage = filterStage, industry = filterIndustry) => {
+  const load = useCallback((query = q, stage = filterStage, industry = filterIndustry, cohort = filterCohort) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (stage) params.set("stage", stage);
     if (industry) params.set("industry", industry);
+    if (cohort) params.set("cohortId", cohort);
     return fetch(`/api/admin/cohort?${params}`)
       .then((r) => r.json())
       .then((data) => { setEntries(data); setLoading(false); });
-  }, [q, filterStage, filterIndustry]);
+  }, [q, filterStage, filterIndustry, filterCohort]);
 
   useEffect(() => {
     if (status === "loading") return;
     if (!session || session.user.role !== "ADMIN") { router.push("/"); return; }
     load();
   }, [session, status, router, load]);
+
+  useEffect(() => {
+    fetch("/api/admin/cohorts").then(r => r.json()).then(setCohorts);
+  }, []);
 
   async function quickDateConnected(id: string, value: string) {
     const leapSubmittedAt = value || null;
@@ -1224,10 +1232,9 @@ export default function CohortPage() {
       case "email":    return (e.members[0]?.user.email ?? "").toLowerCase();
       case "stage":    return STAGES.indexOf(e.stage);
       case "industry": return (e.industry ?? "").toLowerCase();
-      case "county":   return (e.county ?? e.city ?? "").toLowerCase();
-      case "revenue":  return e.annualRevenue ?? -1;
+      case "county":   return (e.street ?? e.county ?? e.city ?? "").toLowerCase();
       case "fte":      return e.currentFte ?? -1;
-      case "leap":     return (e.leapStatus ?? "").toLowerCase();
+      case "cohort":   return (e.cohort?.name ?? "").toLowerCase();
       case "date":     return e.leapSubmittedAt ?? "";
       case "laraId":   return (e.laraId ?? "").toLowerCase();
       case "laraDate": return e.laraDate ?? "";
@@ -1300,19 +1307,28 @@ export default function CohortPage() {
       {/* Filters */}
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <input type="text" placeholder="Search name, email, business…" value={q}
-          onChange={(e) => { setQ(e.target.value); load(e.target.value, filterStage, filterIndustry); }}
+          onChange={(e) => { setQ(e.target.value); load(e.target.value, filterStage, filterIndustry, filterCohort); }}
           style={{ ...inp, minWidth: "260px", width: "auto" }}
         />
         <select value={filterIndustry}
-          onChange={(e) => { setFilterIndustry(e.target.value); load(q, filterStage, e.target.value); }}
+          onChange={(e) => { setFilterIndustry(e.target.value); load(q, filterStage, e.target.value, filterCohort); }}
           style={{ ...inp, width: "auto" }}
         >
           <option value="">All industries</option>
           {industries.map((i) => <option key={i} value={i}>{i}</option>)}
         </select>
-        {(q || filterStage || filterIndustry) && (
+        {cohorts.length > 0 && (
+          <select value={filterCohort}
+            onChange={(e) => { setFilterCohort(e.target.value); load(q, filterStage, filterIndustry, e.target.value); }}
+            style={{ ...inp, width: "auto" }}
+          >
+            <option value="">All cohorts</option>
+            {cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
+        {(q || filterStage || filterIndustry || filterCohort) && (
           <button className="btn btn--ghost" style={{ fontSize: "0.8rem" }}
-            onClick={() => { setQ(""); setFilterStage(""); setFilterIndustry(""); load("", "", ""); }}>
+            onClick={() => { setQ(""); setFilterStage(""); setFilterIndustry(""); setFilterCohort(""); load("", "", "", ""); }}>
             Clear filters
           </button>
         )}
@@ -1320,7 +1336,7 @@ export default function CohortPage() {
 
       {/* Table */}
       <div className="card" style={{ padding: 0, overflow: "hidden", overflowX: "auto" }}>
-        <table className="ll-table" style={{ minWidth: "860px" }}>
+        <table className="ll-table" style={{ minWidth: "900px" }}>
           <thead>
             <tr>
               {([
@@ -1328,13 +1344,12 @@ export default function CohortPage() {
                 ["email",    "Contact"],
                 ["laraId",   "LARA ID"],
                 ["laraDate", "LARA Date"],
-                ["revenue",  "Revenue"],
                 ["hours",    "Hours"],
                 ["stage",    "Stage"],
                 ["industry", "Industry"],
-                ["county",   "Location"],
+                ["county",   "Address"],
                 ["fte",      "FTEs"],
-                ["leap",     "LEAP"],
+                ["cohort",   "Cohort"],
                 ["date",     "Date Connected"],
               ] as [string, string][]).map(([col, label]) => (
                 <th key={col} onClick={() => toggleSort(col)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
@@ -1348,7 +1363,7 @@ export default function CohortPage() {
           </thead>
           <tbody>
             {sortedEntries.length === 0 && (
-              <tr><td colSpan={11} style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>No entries found</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>No entries found.</td></tr>
             )}
             {sortedEntries.map((e) => {
               const owner = e.members[0]?.user;
@@ -1373,9 +1388,6 @@ export default function CohortPage() {
                   <td style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
                     {e.laraDate ? new Date(e.laraDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                   </td>
-                  <td style={{ fontSize: "0.85rem" }}>
-                    {e.annualRevenue != null ? `$${e.annualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
-                  </td>
                   <td style={{ fontSize: "0.85rem", fontWeight: e.trekHours > 0 ? 700 : 400, color: e.trekHours > 0 ? "var(--color-dome-gold)" : "var(--color-text-muted)", whiteSpace: "nowrap" }}>
                     {e.trekHours > 0 ? `${e.trekHours}h` : "—"}
                   </td>
@@ -1388,9 +1400,10 @@ export default function CohortPage() {
                   </td>
                   <td style={{ fontSize: "0.8rem" }}>{e.industry ?? "—"}</td>
                   <td style={{ fontSize: "0.78rem" }}>
-                    {e.county && <p>{e.county} Co.</p>}
-                    {(e.city || e.state) && <p style={{ color: "var(--color-text-muted)" }}>{[e.city, e.state].filter(Boolean).join(", ")}</p>}
-                    {!e.county && !e.city && !e.state && "—"}
+                    {e.street && <p style={{ color: "var(--color-limestone)" }}>{e.street}</p>}
+                    {(e.city || e.state || e.zip) && <p style={{ color: "var(--color-text-muted)" }}>{[e.city, e.state].filter(Boolean).join(", ")}{e.zip ? ` ${e.zip}` : ""}</p>}
+                    {e.county && <p style={{ color: "var(--color-text-muted)", fontSize: "0.72rem" }}>{e.county} Co.</p>}
+                    {!e.street && !e.county && !e.city && !e.state && !e.zip && "—"}
                   </td>
                   <td style={{ fontSize: "0.8rem" }}>
                     {e.currentFte != null && <span>{e.currentFte} now</span>}
@@ -1398,14 +1411,11 @@ export default function CohortPage() {
                     {e.currentFte == null && e.plannedFte == null && "—"}
                   </td>
                   <td>
-                    {e.leapStatus && (
-                      <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "2px 7px", borderRadius: "3px", letterSpacing: "0.06em", textTransform: "uppercase",
-                        background: e.leapStatus === "Connected" ? "rgba(46,109,164,0.15)" : e.leapStatus === "Not Approved" ? "rgba(192,57,43,0.15)" : "rgba(232,200,74,0.15)",
-                        color: e.leapStatus === "Connected" ? "var(--color-river-blue)" : e.leapStatus === "Not Approved" ? "#e07070" : "var(--color-dome-gold)",
-                      }}>
-                        {e.leapStatus}
+                    {e.cohort ? (
+                      <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "2px 7px", borderRadius: "3px", background: "rgba(74,155,142,0.1)", color: "var(--color-teal-accent)", whiteSpace: "nowrap" }}>
+                        {e.cohort.name}
                       </span>
-                    )}
+                    ) : <span style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>—</span>}
                   </td>
                   <td onClick={ev => ev.stopPropagation()}>
                     <input
