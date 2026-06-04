@@ -710,8 +710,6 @@ function EditDrawer({ entry: initial, onClose, onSaved, onDeleted }: {
         city: entry.city,
         state: entry.state,
         county: entry.county,
-        lat: null,
-        lng: null,
         website: entry.website,
         formationType: entry.formationType,
         laraId: entry.laraId,

@@ -21,10 +21,15 @@ type ExtractedRecord = {
   industry: string | null;
   formationType: string | null;
   naicsCode: string | null;
+  street: string | null;
   city: string | null;
   state: string | null;
+  zip: string | null;
   county: string | null;
   website: string | null;
+  laraId: string | null;
+  formationDate: string | null;
+  isDisabilityOwned: boolean;
   currentFte: number | null;
   plannedFte: number | null;
   annualRevenue: number | null;
@@ -84,8 +89,12 @@ function RecordCard({
         <Field label="Owner phone"><input style={inp} value={rec.ownerPhone ?? ""} onChange={e => set("ownerPhone", e.target.value)} /></Field>
         <Field label="Industry"><input style={inp} value={rec.industry ?? ""} onChange={e => set("industry", e.target.value)} /></Field>
         <Field label="Formation type"><input style={inp} value={rec.formationType ?? ""} onChange={e => set("formationType", e.target.value)} placeholder="LLC, Sole Prop…" /></Field>
+        <Field label="LARA ID"><input style={inp} value={rec.laraId ?? ""} onChange={e => set("laraId", e.target.value)} /></Field>
+        <Field label="Formation date"><input style={inp} type="date" value={rec.formationDate ?? ""} onChange={e => set("formationDate", e.target.value)} /></Field>
+        <Field label="Street"><input style={inp} value={rec.street ?? ""} onChange={e => set("street", e.target.value)} placeholder="123 Main St" /></Field>
         <Field label="City"><input style={inp} value={rec.city ?? ""} onChange={e => set("city", e.target.value)} /></Field>
         <Field label="State"><input style={inp} value={rec.state ?? ""} onChange={e => set("state", e.target.value)} /></Field>
+        <Field label="Zip"><input style={inp} value={rec.zip ?? ""} onChange={e => set("zip", e.target.value)} /></Field>
         <Field label="County"><input style={inp} value={rec.county ?? ""} onChange={e => set("county", e.target.value)} /></Field>
         <Field label="Website"><input style={inp} value={rec.website ?? ""} onChange={e => set("website", e.target.value)} /></Field>
         <Field label="NAICS code"><input style={inp} value={rec.naicsCode ?? ""} onChange={e => set("naicsCode", e.target.value)} /></Field>
@@ -196,16 +205,21 @@ export default function CohortImportPage() {
           industry: rec.industry || "",
           formationType: rec.formationType || "",
           naicsCode: rec.naicsCode || "",
+          street: rec.street || "",
           city: rec.city || "",
           state: rec.state || "",
+          zip: rec.zip || "",
           county: rec.county || "",
           website: rec.website || "",
+          laraId: rec.laraId || "",
+          formationDate: rec.formationDate || null,
           currentFte: rec.currentFte,
           plannedFte: rec.plannedFte,
           annualRevenue: rec.annualRevenue,
           isMinorityOwned: rec.isMinorityOwned,
           isWomanOwned: rec.isWomanOwned,
           isVeteranOwned: rec.isVeteranOwned,
+          isDisabilityOwned: rec.isDisabilityOwned,
           leapStatus: rec.leapStatus || "",
           notes: rec.notes || "",
           stage: rec.stage,

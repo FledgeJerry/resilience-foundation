@@ -65,6 +65,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   }
 
+  // Re-geocode if address fields changed and we have enough to geocode
+  const addressChanged = ["street", "city", "state", "zip"].some(f => f in bizFields);
+  if (addressChanged) {
+    const q = [business.street, business.city, business.state, business.zip].filter(Boolean).join(", ");
+    if (q) {
+      try {
+        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+          headers: { "User-Agent": "resilience.foundation/1.0" },
+        });
+        const geoData = await geo.json();
+        if (geoData[0]) {
+          await prisma.business.update({
+            where: { id },
+            data: { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) },
+          });
+        }
+      } catch {}
+    }
+  }
+
   return NextResponse.json(business);
 }
 

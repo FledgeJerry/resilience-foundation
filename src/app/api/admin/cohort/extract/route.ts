@@ -56,10 +56,15 @@ For each entrepreneur, extract:
 - industry: primary industry or sector
 - formationType: business structure (LLC, Sole Proprietorship, Corporation, Partnership, Cooperative, etc.)
 - naicsCode: NAICS code if present
+- street: street address of the business (street number and name only, no city/state/zip)
 - city: business city
 - state: business state (2-letter abbreviation preferred)
+- zip: postal/zip code
 - county: county name
 - website: website URL if present
+- laraId: LARA ID or business registration number if present
+- formationDate: date of company formation if present (ISO format YYYY-MM-DD)
+- isDisabilityOwned: true if explicitly stated as disability-owned, false otherwise
 - currentFte: number of current full-time employees (integer, null if unknown)
 - plannedFte: number of planned/projected full-time employees (integer, null if unknown)
 - annualRevenue: annual revenue in dollars (number, null if unknown)
@@ -83,10 +88,15 @@ Return ONLY valid JSON, no markdown, no explanation:
       "industry": "...",
       "formationType": "...",
       "naicsCode": "...",
+      "street": "...",
       "city": "...",
       "state": "...",
+      "zip": "...",
       "county": "...",
       "website": "...",
+      "laraId": null,
+      "formationDate": null,
+      "isDisabilityOwned": false,
       "currentFte": null,
       "plannedFte": null,
       "annualRevenue": null,

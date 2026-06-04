@@ -90,9 +90,13 @@ export async function POST(req: Request) {
     const existing = existingMember.business as Record<string, unknown>;
     const updateData: Record<string, unknown> = {};
 
-    const stringFields = ["industry", "city", "state", "county", "website", "description", "leapStatus", "notes", "formationType", "naicsCode"];
+    const stringFields = ["industry", "street", "city", "state", "zip", "county", "website", "description", "leapStatus", "notes", "formationType", "naicsCode", "laraId"];
     const numFields = ["currentFte", "plannedFte", "annualRevenue"];
-    const boolFields = ["isMinorityOwned", "isWomanOwned", "isVeteranOwned"];
+    const boolFields = ["isMinorityOwned", "isWomanOwned", "isVeteranOwned", "isDisabilityOwned"];
+
+    if (bizFields.formationDate && !existing.formationDate) {
+      updateData.formationDate = new Date(bizFields.formationDate);
+    }
 
     for (const k of stringFields) {
       const incoming = bizFields[k];
@@ -126,6 +130,7 @@ export async function POST(req: Request) {
       name: businessName,
       isAdminCreated: true,
       ...bizFields,
+      ...(bizFields.formationDate ? { formationDate: new Date(bizFields.formationDate) } : {}),
       members: { create: { userId: user.id, role: "OWNER" } },
     },
     include: {
