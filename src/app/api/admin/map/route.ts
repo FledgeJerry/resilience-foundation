@@ -33,7 +33,9 @@ export async function GET() {
 
   const ungeocodedCount =
     await prisma.user.count({ where: { city: { not: null }, lat: null } }) +
-    await prisma.business.count({ where: { city: { not: null }, lat: null } });
+    await prisma.business.count({ where: { city: { not: null }, lat: null } }) +
+    await prisma.housingProject.count({ where: { address: { not: null }, lat: null } }) +
+    await prisma.coop.count({ where: { city: { not: null }, lat: null } });
 
   return NextResponse.json({ pins, ungeocodedCount });
 }
@@ -61,9 +63,30 @@ export async function POST() {
     }
   }
 
+  if (geocoded < BATCH) {
+    const houses = await prisma.housingProject.findMany({ where: { address: { not: null }, lat: null }, take: BATCH - geocoded, select: { id: true, address: true } });
+    for (const h of houses) {
+      const coords = await geocode(h.address!);
+      if (coords) { await prisma.housingProject.update({ where: { id: h.id }, data: coords }); geocoded++; }
+      await sleep(1100);
+    }
+  }
+
+  if (geocoded < BATCH) {
+    const coops = await prisma.coop.findMany({ where: { city: { not: null }, lat: null }, take: BATCH - geocoded, select: { id: true, street: true, city: true, state: true, zip: true } });
+    for (const c of coops) {
+      const q = [c.street, c.city, c.state, c.zip].filter(Boolean).join(", ");
+      const coords = await geocode(q);
+      if (coords) { await prisma.coop.update({ where: { id: c.id }, data: coords }); geocoded++; }
+      await sleep(1100);
+    }
+  }
+
   const remaining =
     await prisma.user.count({ where: { city: { not: null }, lat: null } }) +
-    await prisma.business.count({ where: { city: { not: null }, lat: null } });
+    await prisma.business.count({ where: { city: { not: null }, lat: null } }) +
+    await prisma.housingProject.count({ where: { address: { not: null }, lat: null } }) +
+    await prisma.coop.count({ where: { city: { not: null }, lat: null } });
 
   return NextResponse.json({ geocoded, remaining });
 }

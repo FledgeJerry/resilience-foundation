@@ -63,6 +63,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const project = await prisma.housingProject.update({ where: { id }, data });
+
+    if ("address" in data && project.address) {
+      try {
+        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(project.address)}&format=json&limit=1`, {
+          headers: { "User-Agent": "resilience.foundation/1.0" },
+        });
+        const geoData = await geo.json();
+        if (geoData[0]) {
+          await prisma.housingProject.update({
+            where: { id },
+            data: { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) },
+          });
+        }
+      } catch {}
+    }
+
     return NextResponse.json(project);
   } catch (err) {
     console.error("PATCH /api/housing/projects/[id]:", err);
