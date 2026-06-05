@@ -19,6 +19,13 @@ const COLORS: Record<string, string> = {
   coop: "#1565c0",
 };
 
+const TYPE_LABELS: Record<string, string> = {
+  entrepreneur: "Entrepreneur",
+  business: "Business",
+  house: "Housing Project",
+  coop: "Co-op",
+};
+
 function coloredIcon(type: string) {
   const color = COLORS[type] ?? "#666";
   return L.divIcon({
@@ -31,6 +38,12 @@ function coloredIcon(type: string) {
 
 type Pin = { id: string; type: string; label: string; sublabel?: string; lat: number; lng: number };
 
+function recordUrl(pin: Pin): string | null {
+  if (pin.type === "business") return `/admin/cohort?open=${pin.id}`;
+  if (pin.type === "house") return `/housing/project/${pin.id}`;
+  return null;
+}
+
 export default function ResilienceMap({ pins }: { pins: Pin[] }) {
   return (
     <MapContainer center={[42.73, -84.55]} zoom={11} style={{ height: "100%", width: "100%" }}>
@@ -38,16 +51,25 @@ export default function ResilienceMap({ pins }: { pins: Pin[] }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {pins.map((pin) => (
-        <Marker key={pin.id} position={[pin.lat, pin.lng]} icon={coloredIcon(pin.type)}>
-          <Popup>
-            <strong>{pin.label}</strong>
-            {pin.sublabel && <><br />{pin.sublabel}</>}
-            <br />
-            <span style={{ color: COLORS[pin.type], textTransform: "capitalize", fontSize: "0.8em" }}>{pin.type}</span>
-          </Popup>
-        </Marker>
-      ))}
+      {pins.map((pin) => {
+        const url = recordUrl(pin);
+        return (
+          <Marker key={pin.id} position={[pin.lat, pin.lng]} icon={coloredIcon(pin.type)}>
+            <Popup>
+              <div style={{ color: "#1a1a1a", minWidth: "140px" }}>
+                <strong style={{ color: "#1a1a1a", display: "block", marginBottom: "2px" }}>{pin.label}</strong>
+                {pin.sublabel && <span style={{ color: "#444", fontSize: "0.85em", display: "block", marginBottom: "3px" }}>{pin.sublabel}</span>}
+                <span style={{ color: COLORS[pin.type], textTransform: "capitalize", fontSize: "0.8em" }}>{TYPE_LABELS[pin.type] ?? pin.type}</span>
+                {url && (
+                  <a href={url} style={{ display: "block", marginTop: "6px", fontSize: "0.8em", color: "#2563eb", textDecoration: "underline" }}>
+                    Open record →
+                  </a>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
     </MapContainer>
   );
 }

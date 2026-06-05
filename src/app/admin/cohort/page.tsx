@@ -1194,6 +1194,17 @@ export default function CohortPage() {
     fetch("/api/admin/cohorts").then(r => r.json()).then(setCohorts);
   }, []);
 
+  // Auto-open drawer when ?open=<businessId> is in the URL
+  useEffect(() => {
+    if (loading || entries.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (openId && !selected) {
+      const entry = entries.find(e => e.id === openId);
+      if (entry) setSelected(entry);
+    }
+  }, [loading, entries]);
+
   async function quickDateConnected(id: string, value: string) {
     const leapSubmittedAt = value || null;
     setDateSaving((s) => ({ ...s, [id]: true }));
