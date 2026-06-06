@@ -50,7 +50,7 @@ export async function PATCH(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { coopId, isPublic, website, contactEmail, phone } = await req.json();
+  const { coopId, isPublic, website, contactEmail, phone, street, city, state, zip } = await req.json();
   if (!coopId) return NextResponse.json({ error: "coopId required" }, { status: 400 });
 
   const membership = await prisma.coopMember.findUnique({
@@ -60,6 +60,8 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const addressChanged = street !== undefined || city !== undefined || state !== undefined || zip !== undefined;
+
   const coop = await prisma.coop.update({
     where: { id: coopId },
     data: {
@@ -67,8 +69,30 @@ export async function PATCH(req: Request) {
       ...(website !== undefined && { website: website?.trim() || null }),
       ...(contactEmail !== undefined && { contactEmail: contactEmail?.trim() || null }),
       ...(phone !== undefined && { phone: phone?.trim() || null }),
+      ...(street !== undefined && { street: street?.trim() || null }),
+      ...(city !== undefined && { city: city?.trim() || null }),
+      ...(state !== undefined && { state: state?.trim() || null }),
+      ...(zip !== undefined && { zip: zip?.trim() || null }),
     },
   });
+
+  if (addressChanged) {
+    const q = [coop.street, coop.city, coop.state, coop.zip].filter(Boolean).join(", ");
+    if (q) {
+      try {
+        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+          headers: { "User-Agent": "resilience.foundation/1.0" },
+        });
+        const geoData = await geo.json();
+        if (geoData[0]) {
+          await prisma.coop.update({
+            where: { id: coopId },
+            data: { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) },
+          });
+        }
+      } catch {}
+    }
+  }
 
   return NextResponse.json(coop);
 }

@@ -9,7 +9,7 @@ import type { HandbookField } from "@/lib/handbook-content";
 import ProposalsPanel from "@/components/ProposalsPanel";
 import RegionPulsePanel from "@/components/RegionPulsePanel";
 
-type Coop = { id: string; name: string; role: string; isPublic?: boolean; website?: string; contactEmail?: string; phone?: string };
+type Coop = { id: string; name: string; role: string; isPublic?: boolean; website?: string; contactEmail?: string; phone?: string; street?: string; city?: string; state?: string; zip?: string };
 type Member = { id: string; role: string; user: { id: string; name: string | null; email: string } };
 type Entries = Record<string, string>;
 type SaveState = Record<string, "saving" | "saved" | "error">;
@@ -46,6 +46,10 @@ function HandbookPageInner() {
   const [dirWebsite, setDirWebsite] = useState("");
   const [dirEmail, setDirEmail] = useState("");
   const [dirPhone, setDirPhone] = useState("");
+  const [dirStreet, setDirStreet] = useState("");
+  const [dirCity, setDirCity] = useState("");
+  const [dirState, setDirState] = useState("");
+  const [dirZip, setDirZip] = useState("");
   const [dirSaving, setDirSaving] = useState(false);
   const [dirSaved, setDirSaved] = useState(false);
 
@@ -90,6 +94,10 @@ function HandbookPageInner() {
         setDirWebsite(coopData.website ?? "");
         setDirEmail(coopData.contactEmail ?? "");
         setDirPhone(coopData.phone ?? "");
+        setDirStreet(coopData.street ?? "");
+        setDirCity(coopData.city ?? "");
+        setDirState(coopData.state ?? "");
+        setDirZip(coopData.zip ?? "");
       }
     }
   }, [coopId, isAdminView, viewAsUserId, coops]);
@@ -189,13 +197,13 @@ function HandbookPageInner() {
     await fetch("/api/coops", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coopId, isPublic: dirPublic, website: dirWebsite, contactEmail: dirEmail, phone: dirPhone }),
+      body: JSON.stringify({ coopId, isPublic: dirPublic, website: dirWebsite, contactEmail: dirEmail, phone: dirPhone, street: dirStreet, city: dirCity, state: dirState, zip: dirZip }),
     });
     setDirSaving(false);
     setDirSaved(true);
     setTimeout(() => setDirSaved(false), 2500);
     setCoops((prev) => prev.map((c) => c.id === coopId
-      ? { ...c, isPublic: dirPublic, website: dirWebsite, contactEmail: dirEmail, phone: dirPhone }
+      ? { ...c, isPublic: dirPublic, website: dirWebsite, contactEmail: dirEmail, phone: dirPhone, street: dirStreet, city: dirCity, state: dirState, zip: dirZip }
       : c
     ));
   }
@@ -445,6 +453,33 @@ function HandbookPageInner() {
                   placeholder="Phone"
                   style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem" }}
                 />
+                <input
+                  value={dirStreet}
+                  onChange={(e) => setDirStreet(e.target.value)}
+                  placeholder="Street address"
+                  style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem" }}
+                />
+                <div style={{ display: "flex", gap: "0.4rem" }}>
+                  <input
+                    value={dirCity}
+                    onChange={(e) => setDirCity(e.target.value)}
+                    placeholder="City"
+                    style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem", flex: 2 }}
+                  />
+                  <input
+                    value={dirState}
+                    onChange={(e) => setDirState(e.target.value)}
+                    placeholder="ST"
+                    maxLength={2}
+                    style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem", flex: 1 }}
+                  />
+                  <input
+                    value={dirZip}
+                    onChange={(e) => setDirZip(e.target.value)}
+                    placeholder="ZIP"
+                    style={{ fontSize: "0.75rem", padding: "0.3rem 0.5rem", flex: 1 }}
+                  />
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <button onClick={saveDirectory} disabled={dirSaving} className="btn btn--primary btn--sm" style={{ fontSize: "0.7rem", padding: "0.3rem 0.6rem" }}>
                     {dirSaving ? "Saving…" : "Save"}
