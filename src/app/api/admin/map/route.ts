@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { "User-Agent": "resilience.foundation/1.0" } });
-    const data = await res.json();
-    if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-  } catch {}
-  return null;
-}
+import { geocodeStructured, geocodeOneLine } from "@/lib/geocode";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -47,38 +38,35 @@ export async function POST() {
 
   const users = await prisma.user.findMany({ where: { city: { not: null }, lat: null }, take: BATCH, select: { id: true, street: true, city: true, state: true, zip: true } });
   for (const u of users) {
-    const q = [u.street, u.city, u.state, u.zip].filter(Boolean).join(", ");
-    const coords = await geocode(q);
+    const coords = await geocodeStructured(u.street, u.city, u.state, u.zip);
     if (coords) { await prisma.user.update({ where: { id: u.id }, data: coords }); geocoded++; }
-    await sleep(1100);
+    await sleep(200);
   }
 
   if (geocoded < BATCH) {
     const businesses = await prisma.business.findMany({ where: { city: { not: null }, lat: null }, take: BATCH - geocoded, select: { id: true, street: true, city: true, state: true, zip: true } });
     for (const b of businesses) {
-      const q = [b.street, b.city, b.state, b.zip].filter(Boolean).join(", ");
-      const coords = await geocode(q);
+      const coords = await geocodeStructured(b.street, b.city, b.state, b.zip);
       if (coords) { await prisma.business.update({ where: { id: b.id }, data: coords }); geocoded++; }
-      await sleep(1100);
+      await sleep(200);
     }
   }
 
   if (geocoded < BATCH) {
     const houses = await prisma.housingProject.findMany({ where: { address: { not: null }, lat: null }, take: BATCH - geocoded, select: { id: true, address: true } });
     for (const h of houses) {
-      const coords = await geocode(h.address!);
+      const coords = await geocodeOneLine(h.address!);
       if (coords) { await prisma.housingProject.update({ where: { id: h.id }, data: coords }); geocoded++; }
-      await sleep(1100);
+      await sleep(200);
     }
   }
 
   if (geocoded < BATCH) {
     const coops = await prisma.coop.findMany({ where: { city: { not: null }, lat: null }, take: BATCH - geocoded, select: { id: true, street: true, city: true, state: true, zip: true } });
     for (const c of coops) {
-      const q = [c.street, c.city, c.state, c.zip].filter(Boolean).join(", ");
-      const coords = await geocode(q);
+      const coords = await geocodeStructured(c.street, c.city, c.state, c.zip);
       if (coords) { await prisma.coop.update({ where: { id: c.id }, data: coords }); geocoded++; }
-      await sleep(1100);
+      await sleep(200);
     }
   }
 

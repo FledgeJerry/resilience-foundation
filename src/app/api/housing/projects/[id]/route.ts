@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { geocodeOneLine } from "@/lib/geocode";
 
 async function getMembership(userId: string, projectId: string) {
   return prisma.housingMember.findUnique({
@@ -65,18 +66,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const project = await prisma.housingProject.update({ where: { id }, data });
 
     if ("address" in data && project.address) {
-      try {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(project.address)}&format=json&limit=1`, {
-          headers: { "User-Agent": "resilience.foundation/1.0" },
-        });
-        const geoData = await geo.json();
-        if (geoData[0]) {
-          await prisma.housingProject.update({
-            where: { id },
-            data: { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) },
-          });
-        }
-      } catch {}
+      const coords = await geocodeOneLine(project.address);
+      if (coords) await prisma.housingProject.update({ where: { id }, data: coords });
     }
 
     return NextResponse.json(project);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { geocodeStructured } from "@/lib/geocode";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -65,24 +66,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   }
 
-  // Re-geocode if address fields changed and we have enough to geocode
+  // Re-geocode if address fields changed
   const addressChanged = ["street", "city", "state", "zip"].some(f => f in bizFields);
   if (addressChanged) {
-    const q = [business.street, business.city, business.state, business.zip].filter(Boolean).join(", ");
-    if (q) {
-      try {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
-          headers: { "User-Agent": "resilience.foundation/1.0" },
-        });
-        const geoData = await geo.json();
-        if (geoData[0]) {
-          await prisma.business.update({
-            where: { id },
-            data: { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) },
-          });
-        }
-      } catch {}
-    }
+    const coords = await geocodeStructured(business.street, business.city, business.state, business.zip);
+    if (coords) await prisma.business.update({ where: { id }, data: coords });
   }
 
   return NextResponse.json(business);
