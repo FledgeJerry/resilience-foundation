@@ -3,50 +3,37 @@ import { prisma } from "@/lib/prisma";
 
 // Public read-only endpoint — cross-site metrics for lansing.love governance dashboard
 export async function GET() {
+  const cutoff90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
   const [
     totalEntrepreneurs,
     activeCoops,
     housingProjects,
     coopsWithHandbook,
     stageBreakdown,
-    ownershipBreakdown,
+    minorityOwned,
+    womanOwned,
+    veteranOwned,
+    disabilityOwned,
     recentBusinesses,
+    handbookEntries,
   ] = await Promise.all([
     prisma.business.count({ where: { isAdminCreated: true } }),
     prisma.coop.count(),
     prisma.housingProject.count(),
-    // Coops with at least one handbook entry = actively building
     prisma.coop.count({ where: { handbookEntries: { some: {} } } }),
-    // Pipeline stage distribution
     prisma.business.groupBy({
       by: ["stage"],
       where: { isAdminCreated: true },
       _count: { stage: true },
     }),
-    // Ownership demographics
-    prisma.business.aggregate({
-      where: { isAdminCreated: true },
-      _sum: {
-        isMinorityOwned: true as never,
-        isWomanOwned: true as never,
-        isVeteranOwned: true as never,
-        isDisabilityOwned: true as never,
-      },
-    }),
-    // Recent additions (last 90 days)
-    prisma.business.count({
-      where: {
-        isAdminCreated: true,
-        createdAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
-      },
-    }),
+    prisma.business.count({ where: { isAdminCreated: true, isMinorityOwned: true } }),
+    prisma.business.count({ where: { isAdminCreated: true, isWomanOwned: true } }),
+    prisma.business.count({ where: { isAdminCreated: true, isVeteranOwned: true } }),
+    prisma.business.count({ where: { isAdminCreated: true, isDisabilityOwned: true } }),
+    prisma.business.count({ where: { isAdminCreated: true, createdAt: { gte: cutoff90 } } }),
+    prisma.handbookEntry.groupBy({ by: ["fieldId"], _count: { fieldId: true } }),
   ]);
-
-  // Handbook section completion — unique sections filled across all coops
-  const handbookEntries = await prisma.handbookEntry.groupBy({
-    by: ["fieldId"],
-    _count: { fieldId: true },
-  });
 
   const stages: Record<string, number> = {};
   for (const row of stageBreakdown) {
@@ -58,10 +45,10 @@ export async function GET() {
       total: totalEntrepreneurs,
       addedLast90Days: recentBusinesses,
       byStage: stages,
-      minorityOwned: Number((ownershipBreakdown._sum as Record<string, unknown>).isMinorityOwned ?? 0),
-      womanOwned: Number((ownershipBreakdown._sum as Record<string, unknown>).isWomanOwned ?? 0),
-      veteranOwned: Number((ownershipBreakdown._sum as Record<string, unknown>).isVeteranOwned ?? 0),
-      disabilityOwned: Number((ownershipBreakdown._sum as Record<string, unknown>).isDisabilityOwned ?? 0),
+      minorityOwned,
+      womanOwned,
+      veteranOwned,
+      disabilityOwned,
     },
     coops: {
       total: activeCoops,
