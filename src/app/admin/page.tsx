@@ -60,6 +60,9 @@ export default function AdminPage() {
           <Link href="/admin/map" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
             Map →
           </Link>
+          <Link href="/admin/merge" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
+            Merge →
+          </Link>
           <Link href="/admin/time" className="btn btn--ghost" style={{ fontSize: "0.85rem" }}>
             Time Log →
           </Link>

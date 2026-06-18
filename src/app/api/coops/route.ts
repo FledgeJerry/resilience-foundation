@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     const memberships = await prisma.coopMember.findMany({
       where: { userId: targetUserId },
-      include: { coop: { select: { id: true, name: true, createdAt: true, isPublic: true, website: true, contactEmail: true, phone: true } } },
+      include: { coop: { select: { id: true, name: true, createdAt: true, isPublic: true, website: true, contactEmail: true, phone: true, street: true, city: true, state: true, zip: true } } },
       orderBy: { coop: { createdAt: "asc" } },
     });
 
