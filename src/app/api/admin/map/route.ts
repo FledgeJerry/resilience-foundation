@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { geocodeStructured, geocodeOneLine } from "@/lib/geocode";
 
@@ -8,6 +9,10 @@ function sleep(ms: number) {
 
 // GET — return only already-geocoded pins (fast, no timeout risk)
 export async function GET() {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN")
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const pins: { id: string; type: string; label: string; sublabel?: string; lat: number; lng: number }[] = [];
 
   const [users, businesses, houses, coops] = await Promise.all([
@@ -33,6 +38,10 @@ export async function GET() {
 
 // POST — geocode one batch of ungeocoded records (call repeatedly until done)
 export async function POST() {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN")
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const BATCH = 5;
   let geocoded = 0;
 
