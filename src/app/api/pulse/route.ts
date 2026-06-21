@@ -106,6 +106,17 @@ export async function GET() {
 
   const lansingComparison = await fetchLansingDemographics();
 
+  // Housing occupancy — active shareholders only (no moveOutDate). occupantCount
+  // is a real tracked field, not estimated, but not every shareholder has it
+  // filled in, so we report coverage alongside the total so the number is
+  // legible as "at least N people" rather than implied-precise.
+  const activeShareholders = await prisma.housingShareHolder.findMany({
+    where: { moveOutDate: null },
+    select: { occupantCount: true },
+  });
+  const totalOccupants = activeShareholders.reduce((s, h) => s + (h.occupantCount ?? 0), 0);
+  const shareholdersWithOccupancyData = activeShareholders.filter((h) => h.occupantCount !== null).length;
+
   return NextResponse.json({
     entrepreneurs: {
       total: totalEntrepreneurs,
@@ -122,6 +133,9 @@ export async function GET() {
     },
     housing: {
       projects: housingProjects,
+      activeShareholders: activeShareholders.length,
+      totalOccupants,
+      shareholdersWithOccupancyData,
     },
     handbook: {
       fieldsFilled: handbookEntries.reduce((s, r) => s + r._count.fieldId, 0),
