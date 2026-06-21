@@ -15,6 +15,6 @@ echo "==> Syncing .next/node_modules to Pi..."
 rsync -az .next/node_modules/ "$PI:$PI_PATH/.next/node_modules/"
 
 echo "==> Restarting on Pi..."
-ssh "$PI" "pm2 restart resilience-foundation --update-env"
+ssh "$PI" "source ~/.nvm/nvm.sh && pm2 restart resilience-foundation --update-env"
 
 echo "==> Done. Verify: curl -s http://localhost:3002 | grep title"
