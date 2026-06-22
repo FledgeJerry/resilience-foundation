@@ -67,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if ("address" in data && project.address) {
       const coords = await geocodeOneLine(project.address);
-      if (coords) await prisma.housingProject.update({ where: { id }, data: coords });
+      await prisma.housingProject.update({ where: { id }, data: { ...coords, geocodeTriedAt: coords ? new Date() : null } });
     }
 
     return NextResponse.json(project);

@@ -79,7 +79,7 @@ export async function PATCH(req: Request) {
 
   if (addressChanged) {
     const coords = await geocodeStructured(coop.street, coop.city, coop.state, coop.zip);
-    if (coords) await prisma.coop.update({ where: { id: coopId }, data: coords });
+    await prisma.coop.update({ where: { id: coopId }, data: { ...coords, geocodeTriedAt: coords ? new Date() : null } });
   }
 
   return NextResponse.json(coop);

@@ -19,6 +19,7 @@ export default function AdminMapPage() {
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [ungeocoded, setUngeocoded] = useState(0);
+  const [untried, setUntried] = useState(0);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState("");
 
@@ -26,12 +27,13 @@ export default function AdminMapPage() {
     setLoading(true);
     fetch("/api/admin/map")
       .then((r) => r.json())
-      .then(({ pins, ungeocodedCount }) => {
+      .then(({ pins, ungeocodedCount, untriedCount }) => {
         setPins(pins);
         const c: Record<string, number> = {};
         for (const p of pins) c[p.type] = (c[p.type] ?? 0) + 1;
         setCounts(c);
         setUngeocoded(ungeocodedCount ?? 0);
+        setUntried(untriedCount ?? 0);
         setLoading(false);
       });
   }
@@ -40,16 +42,15 @@ export default function AdminMapPage() {
 
   async function runGeocoding() {
     setGeocoding(true);
-    let remaining = ungeocoded;
-    while (remaining > 0) {
-      const res = await fetch("/api/admin/map", { method: "POST" });
-      const data = await res.json();
-      remaining = data.remaining;
-      setGeocodeStatus(`Geocoded ${data.geocoded} — ${remaining} remaining…`);
-      if (data.geocoded === 0) break;
-    }
+    const res = await fetch("/api/admin/map", { method: "POST" });
+    const data = await res.json();
+    const failed = data.attempted - data.geocoded;
     setGeocoding(false);
-    setGeocodeStatus("Done!");
+    setGeocodeStatus(
+      failed > 0
+        ? `Done — geocoded ${data.geocoded}, ${failed} couldn't be matched (check their addresses)`
+        : `Done — geocoded ${data.geocoded}`
+    );
     loadPins();
   }
 
@@ -57,13 +58,14 @@ export default function AdminMapPage() {
     <div style={{ padding: "1.5rem" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
         <h1>Community Map</h1>
-        {ungeocoded > 0 && !geocoding && (
+        {untried > 0 && !geocoding && (
           <button className="btn btn--secondary" style={{ fontSize: "0.8rem" }} onClick={runGeocoding}>
-            Geocode {ungeocoded} missing addresses
+            Geocode {untried} new addresses
           </button>
         )}
-        {geocoding && <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{geocodeStatus}</span>}
-        {geocodeStatus === "Done!" && <span style={{ fontSize: "0.85rem", color: "var(--color-teal-accent)" }}>✓ Geocoding complete</span>}
+        {geocoding && <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Geocoding…</span>}
+        {!geocoding && geocodeStatus && <span style={{ fontSize: "0.85rem", color: "var(--color-teal-accent)" }}>{geocodeStatus}</span>}
+        {ungeocoded - untried > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>({ungeocoded - untried} unmatched address{ungeocoded - untried === 1 ? "" : "es"})</span>}
       </div>
 
       <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>

@@ -32,6 +32,7 @@ model User {
   zip             String?
   lat             Float?
   lng             Float?
+  geocodeTriedAt  DateTime?
   ageRange        String?
   gender          String?
   raceEthnicity   String?
@@ -73,6 +74,7 @@ model Coop {
   zip          String?
   lat          Float?
   lng          Float?
+  geocodeTriedAt DateTime?
 
   members         CoopMember[]
   handbookEntries HandbookEntry[]
@@ -158,6 +160,7 @@ model HousingProject {
   zip             String?
   lat             Float?
   lng             Float?
+  geocodeTriedAt  DateTime?
   purchasePrice   Float?
   renovationCost  Float?
   postRenoValue   Float?
@@ -335,6 +338,7 @@ model Business {
   zip         String?
   lat         Float?
   lng         Float?
+  geocodeTriedAt DateTime?
   website     String?
   notes       String?
 

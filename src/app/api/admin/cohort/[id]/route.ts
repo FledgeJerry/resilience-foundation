@@ -70,7 +70,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const addressChanged = ["street", "city", "state", "zip"].some(f => f in bizFields);
   if (addressChanged) {
     const coords = await geocodeStructured(business.street, business.city, business.state, business.zip);
-    if (coords) await prisma.business.update({ where: { id }, data: coords });
+    await prisma.business.update({ where: { id }, data: { ...coords, geocodeTriedAt: coords ? new Date() : null } });
   }
 
   return NextResponse.json(business);
