@@ -496,7 +496,6 @@ model BusinessFunding {
 model TrekTimeLog {
   id          String    @id @default(cuid())
   date        DateTime
-  quarter     String
   category    String
   hours       Float
   staffMember String

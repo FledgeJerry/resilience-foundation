@@ -70,14 +70,6 @@ function clean(s: string | undefined): string {
   return (s ?? "").trim();
 }
 
-function normalizeQuarter(q: string): string {
-  // "Q124" → "Q1 2024", "Q1 2025" → "Q1 2025", "Q12026" → "Q1 2026"
-  const m = q.match(/^(Q[1-4])\s*(\d{2,4})$/i);
-  if (!m) return q;
-  const qNum = m[1].toUpperCase();
-  const yr = m[2].length === 2 ? `20${m[2]}` : m[2];
-  return `${qNum} ${yr}`;
-}
 
 function parseDate(s: string): Date | null {
   if (!s.trim()) return null;
@@ -137,7 +129,6 @@ async function main() {
     const date = parseDate(dateStr);
     if (!date) continue;
 
-    const quarter = normalizeQuarter(clean(row["Quarter"]));
     const category = clean(row["Category"]);
     const entrepreneur = clean(row["Entrepreneur"]);
     const who = clean(row["Who"]);
@@ -158,7 +149,7 @@ async function main() {
       });
       if (existing) { skipped++; continue; }
       await prisma.trekTimeLog.create({
-        data: { businessId: null, date, quarter, category, hours, staffMember, notes },
+        data: { businessId: null, date, category, hours, staffMember, notes },
       });
       created++;
     } else {
@@ -175,7 +166,7 @@ async function main() {
           });
           if (!existing) {
             await prisma.trekTimeLog.create({
-              data: { businessId: null, date, quarter, category, hours: hours / names.length, staffMember, notes: `${name} (unmatched)` },
+              data: { businessId: null, date, category, hours: hours / names.length, staffMember, notes: `${name} (unmatched)` },
             });
             created++;
           } else skipped++;
@@ -187,7 +178,7 @@ async function main() {
         });
         if (existing) { skipped++; continue; }
         await prisma.trekTimeLog.create({
-          data: { businessId, date, quarter, category, hours: entryHours, staffMember, notes },
+          data: { businessId, date, category, hours: entryHours, staffMember, notes },
         });
         created++;
       }

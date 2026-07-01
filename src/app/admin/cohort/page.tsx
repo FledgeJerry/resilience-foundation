@@ -535,7 +535,13 @@ function HiresTab({ businessId, records, onRecordsChange }: {
 
 // ─── Time Tab ─────────────────────────────────────────────────────────────────
 
-type TimeRecord = { id: string; date: string; quarter: string; category: string; hours: number; staffMember: string; notes: string | null };
+type TimeRecord = { id: string; date: string; category: string; hours: number; staffMember: string; notes: string | null };
+
+function dateToQuarter(dateStr: string): string {
+  const d = new Date(dateStr);
+  const q = Math.ceil((d.getMonth() + 1) / 3);
+  return `Q${q} ${d.getFullYear()}`;
+}
 
 const TIME_CATEGORIES = ["One On One", "EJ Meetup", "99 Problems", "Data/Reporting", "Admin", "Other"];
 
@@ -545,7 +551,7 @@ function TimeTab({ businessId, records, onRecordsChange }: {
   onRecordsChange: (r: TimeRecord[]) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ date: "", quarter: "", category: "One On One", hours: "1", staffMember: "Jerry", notes: "" });
+  const [form, setForm] = useState({ date: "", category: "One On One", hours: "1", staffMember: "Jerry", notes: "" });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -561,7 +567,7 @@ function TimeTab({ businessId, records, onRecordsChange }: {
     });
     if (res.ok) {
       onRecordsChange([await res.json(), ...(records ?? [])]);
-      setForm({ date: "", quarter: "", category: "One On One", hours: "1", staffMember: "Jerry", notes: "" });
+      setForm({ date: "", category: "One On One", hours: "1", staffMember: "Jerry", notes: "" });
       setAdding(false);
     }
     setSaving(false);
@@ -577,7 +583,8 @@ function TimeTab({ businessId, records, onRecordsChange }: {
   if (records === null) return <div style={{ padding: "2rem", color: "var(--color-text-muted)" }}>Loading…</div>;
 
   const byQuarter = records.reduce<Record<string, number>>((acc, r) => {
-    acc[r.quarter] = (acc[r.quarter] ?? 0) + r.hours;
+    const q = dateToQuarter(r.date);
+    acc[q] = (acc[q] ?? 0) + r.hours;
     return acc;
   }, {});
 
@@ -613,7 +620,6 @@ function TimeTab({ businessId, records, onRecordsChange }: {
               </select>
             </Field>
             <Field label="Staff"><input style={inpSm} value={form.staffMember} onChange={e => setForm(f => ({ ...f, staffMember: e.target.value }))} /></Field>
-            <Field label="Quarter"><input style={inpSm} value={form.quarter} onChange={e => setForm(f => ({ ...f, quarter: e.target.value }))} placeholder="Q2 2025" /></Field>
           </div>
           <Field label="Notes"><textarea style={{ ...inpSm, minHeight: "52px", resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></Field>
           <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -635,7 +641,7 @@ function TimeTab({ businessId, records, onRecordsChange }: {
                   <span style={{ fontSize: "0.78rem", color: "var(--color-limestone)" }}>{r.category}</span>
                   <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{r.staffMember}</span>
                   <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{fmtDate(r.date)}</span>
-                  {r.quarter && <span style={{ fontSize: "0.65rem", padding: "1px 5px", borderRadius: "3px", background: "rgba(232,200,74,0.1)", color: "var(--color-dome-gold)" }}>{r.quarter}</span>}
+                  <span style={{ fontSize: "0.65rem", padding: "1px 5px", borderRadius: "3px", background: "rgba(232,200,74,0.1)", color: "var(--color-dome-gold)" }}>{dateToQuarter(r.date)}</span>
                 </div>
                 {r.notes && <p style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", marginTop: "0.25rem", fontStyle: "italic" }}>{r.notes}</p>}
               </div>

@@ -24,7 +24,6 @@ export async function POST(req: Request, { params }: Ctx) {
     data: {
       businessId: id,
       date: new Date(body.date),
-      quarter: body.quarter?.trim() || "",
       category: body.category?.trim() || "One On One",
       hours: parseFloat(body.hours) || 0,
       staffMember: body.staffMember?.trim() || "Jerry",

@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// "Q2 2025" → date range for filtering
+function quarterToDateRange(q: string): { gte: Date; lt: Date } | null {
+  const m = q.trim().match(/Q(\d)\s+(\d{4})/i);
+  if (!m) return null;
+  const qn = parseInt(m[1]);
+  const yr = parseInt(m[2]);
+  const startMonth = (qn - 1) * 3;
+  return { gte: new Date(yr, startMonth, 1), lt: new Date(yr, startMonth + 3, 1) };
+}
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -9,10 +19,11 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const quarter = searchParams.get("quarter") ?? "";
   const category = searchParams.get("category") ?? "";
+  const dateRange = quarter ? quarterToDateRange(quarter) : null;
 
   const logs = await prisma.trekTimeLog.findMany({
     where: {
-      ...(quarter ? { quarter: { contains: quarter, mode: "insensitive" } } : {}),
+      ...(dateRange ? { date: dateRange } : {}),
       ...(category ? { category: { contains: category, mode: "insensitive" } } : {}),
     },
     include: { business: { select: { id: true, name: true } } },
@@ -29,7 +40,6 @@ export async function POST(req: Request) {
     data: {
       businessId: null,
       date: new Date(body.date),
-      quarter: body.quarter?.trim() || "",
       category: body.category?.trim() || "",
       hours: parseFloat(body.hours) || 0,
       staffMember: body.staffMember?.trim() || "Jerry",

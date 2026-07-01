@@ -13,7 +13,6 @@ export async function PATCH(req: Request, { params }: Ctx) {
     where: { id: tid },
     data: {
       date: body.date ? new Date(body.date) : undefined,
-      quarter: body.quarter?.trim() || undefined,
       category: body.category?.trim() || undefined,
       hours: body.hours != null ? parseFloat(body.hours) : undefined,
       staffMember: body.staffMember?.trim() || undefined,

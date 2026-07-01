@@ -9,7 +9,6 @@ type Business = { id: string; name: string };
 type TimeLog = {
   id: string;
   date: string;
-  quarter: string;
   category: string;
   hours: number;
   staffMember: string;
@@ -27,6 +26,12 @@ const inp: React.CSSProperties = {
 };
 
 const CATEGORIES = ["", "EJ Meetup", "99 Problems but a Pitch Ain't One", "One on One Consulting", "Admin and Reporting", "TREK Meeting", "Other"];
+
+function dateToQuarter(dateStr: string): string {
+  const d = new Date(dateStr);
+  const q = Math.ceil((d.getMonth() + 1) / 3);
+  return `Q${q} ${d.getFullYear()}`;
+}
 
 function parsedName(log: TimeLog): string {
   if (log.business) return log.business.name;
@@ -47,7 +52,7 @@ function sortLogs(logs: TimeLog[], col: SortCol, dir: SortDir): TimeLog[] {
     let av: string | number = "";
     let bv: string | number = "";
     if (col === "date") { av = a.date; bv = b.date; }
-    else if (col === "quarter") { av = a.quarter; bv = b.quarter; }
+    else if (col === "quarter") { av = dateToQuarter(a.date); bv = dateToQuarter(b.date); }
     else if (col === "category") { av = a.category; bv = b.category; }
     else if (col === "hours") { av = a.hours; bv = b.hours; }
     else if (col === "staffMember") { av = a.staffMember; bv = b.staffMember; }
@@ -67,13 +72,13 @@ export default function TimePage() {
   const [filterQ, setFilterQ] = useState("");
   const [filterCat, setFilterCat] = useState("");
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ date: "", quarter: "", category: "EJ Meetup", hours: "2", staffMember: "Jerry", notes: "" });
+  const [form, setForm] = useState({ date: "", category: "EJ Meetup", hours: "2", staffMember: "Jerry", notes: "" });
   const [saving, setSaving] = useState(false);
   const [sortCol, setSortCol] = useState<SortCol>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [assigning, setAssigning] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ date: "", quarter: "", category: "", hours: "", staffMember: "", notes: "" });
+  const [editForm, setEditForm] = useState({ date: "", category: "", hours: "", staffMember: "", notes: "" });
 
   const load = useCallback(() => {
     setLoading(true);
@@ -107,7 +112,7 @@ export default function TimePage() {
     if (res.ok) {
       const created = await res.json();
       setLogs(prev => [created, ...prev]);
-      setForm({ date: "", quarter: "", category: "EJ Meetup", hours: "2", staffMember: "Jerry", notes: "" });
+      setForm({ date: "", category: "EJ Meetup", hours: "2", staffMember: "Jerry", notes: "" });
       setAdding(false);
     }
     setSaving(false);
@@ -145,7 +150,6 @@ export default function TimePage() {
     setEditing(l.id);
     setEditForm({
       date: new Date(l.date).toISOString().slice(0, 10),
-      quarter: l.quarter,
       category: l.category,
       hours: String(l.hours),
       staffMember: l.staffMember,
@@ -173,7 +177,8 @@ export default function TimePage() {
     return acc;
   }, {});
   const byQuarter = logs.reduce<Record<string, number>>((acc, l) => {
-    if (l.quarter) acc[l.quarter] = (acc[l.quarter] ?? 0) + l.hours;
+    const q = dateToQuarter(l.date);
+    acc[q] = (acc[q] ?? 0) + l.hours;
     return acc;
   }, {});
   const byEntrepreneur = logs
@@ -183,7 +188,7 @@ export default function TimePage() {
       acc[id] = { name: l.business!.name, hours: (acc[id]?.hours ?? 0) + l.hours };
       return acc;
     }, {});
-  const quarters = [...new Set(logs.map(l => l.quarter).filter(Boolean))].sort();
+  const quarters = [...new Set(logs.map(l => dateToQuarter(l.date)))].sort();
   const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const unmatchedCount = logs.filter(isUnmatched).length;
 
@@ -305,7 +310,6 @@ export default function TimePage() {
               </select>
             </div>
             <div><label style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", display: "block", marginBottom: "0.25rem" }}>Staff</label><input style={{ ...inp, width: "100%" }} value={form.staffMember} onChange={e => setForm(f => ({ ...f, staffMember: e.target.value }))} /></div>
-            <div><label style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", display: "block", marginBottom: "0.25rem" }}>Quarter</label><input style={{ ...inp, width: "100%" }} value={form.quarter} onChange={e => setForm(f => ({ ...f, quarter: e.target.value }))} placeholder="Q2 2025" /></div>
           </div>
           <div><label style={{ fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", display: "block", marginBottom: "0.25rem" }}>Notes</label><textarea style={{ ...inp, width: "100%", minHeight: "52px", resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -352,7 +356,7 @@ export default function TimePage() {
                     return (
                       <tr key={l.id} style={{ borderBottom: "1px solid var(--color-border)", background: "rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "120px" }} type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} /></td>
-                        <td style={{ padding: "0.4rem 0.5rem" }}><input style={{ ...inp, width: "80px" }} value={editForm.quarter} onChange={e => setEditForm(f => ({ ...f, quarter: e.target.value }))} placeholder="Q2 2025" /></td>
+                        <td style={{ padding: "0.4rem 0.5rem", color: "var(--color-text-muted)", fontSize: "0.75rem" }}>{editForm.date ? dateToQuarter(editForm.date) : ""}</td>
                         <td style={{ padding: "0.4rem 0.5rem" }}>
                           <select style={{ ...inp, width: "130px" }} value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}>
                             {CATEGORIES.filter(Boolean).map(c => <option key={c} value={c}>{c}</option>)}
@@ -379,7 +383,7 @@ export default function TimePage() {
                   return (
                     <tr key={l.id} style={{ borderBottom: "1px solid var(--color-border)", background: unmatched ? "rgba(224,112,112,0.04)" : undefined }}>
                       <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>{fmtDate(l.date)}</td>
-                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{l.quarter}</td>
+                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{dateToQuarter(l.date)}</td>
                       <td style={{ padding: "0.5rem 0.75rem" }}>{l.category}</td>
                       <td style={{ padding: "0.5rem 0.75rem", fontWeight: 700, color: "var(--color-dome-gold)" }}>{l.hours}</td>
                       <td style={{ padding: "0.5rem 0.75rem", color: "var(--color-text-muted)" }}>{l.staffMember}</td>
