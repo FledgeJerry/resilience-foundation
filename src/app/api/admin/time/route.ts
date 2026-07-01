@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// "Q2 2025" → date range for filtering
+// "2025 Q2" → date range for filtering
 function quarterToDateRange(q: string): { gte: Date; lt: Date } | null {
-  const m = q.trim().match(/Q(\d)\s+(\d{4})/i);
+  const m = q.trim().match(/(\d{4})\s+Q(\d)/i);
   if (!m) return null;
-  const qn = parseInt(m[1]);
-  const yr = parseInt(m[2]);
+  const yr = parseInt(m[1]);
+  const qn = parseInt(m[2]);
   const startMonth = (qn - 1) * 3;
   return { gte: new Date(yr, startMonth, 1), lt: new Date(yr, startMonth + 3, 1) };
 }

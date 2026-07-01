@@ -540,7 +540,7 @@ type TimeRecord = { id: string; date: string; category: string; hours: number; s
 function dateToQuarter(dateStr: string): string {
   const d = new Date(dateStr);
   const q = Math.ceil((d.getMonth() + 1) / 3);
-  return `Q${q} ${d.getFullYear()}`;
+  return `${d.getFullYear()} Q${q}`;
 }
 
 const TIME_CATEGORIES = ["One On One", "EJ Meetup", "99 Problems", "Data/Reporting", "Admin", "Other"];

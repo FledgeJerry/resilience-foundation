@@ -30,7 +30,7 @@ const CATEGORIES = ["", "EJ Meetup", "99 Problems but a Pitch Ain't One", "One o
 function dateToQuarter(dateStr: string): string {
   const d = new Date(dateStr);
   const q = Math.ceil((d.getMonth() + 1) / 3);
-  return `Q${q} ${d.getFullYear()}`;
+  return `${d.getFullYear()} Q${q}`;
 }
 
 function parsedName(log: TimeLog): string {
