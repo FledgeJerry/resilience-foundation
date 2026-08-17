@@ -3,6 +3,7 @@ import { IBM_Plex_Sans, Merriweather } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import SessionProvider from "@/components/SessionProvider";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-sans",
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <SessionProvider>
           <Nav />
+          <FeedbackWidget />
           <main style={{ flex: 1, maxWidth: "1100px", margin: "0 auto", width: "100%", padding: "2rem 1.5rem" }}>
             {children}
           </main>
