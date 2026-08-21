@@ -13,7 +13,6 @@ export async function GET() {
       orderBy: { name: "asc" },
     }),
     prisma.coop.findMany({
-      where: { isPublic: true },
       select: {
         id: true, name: true, website: true, contactEmail: true, phone: true,
         street: true, city: true, state: true, zip: true, createdAt: true,

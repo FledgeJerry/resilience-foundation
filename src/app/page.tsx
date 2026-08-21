@@ -83,7 +83,7 @@ async function getCommunityStats() {
   const [entrepreneurCount, coopBusinessCount, publicCoopCount, housingCount, recentEntrepreneurs, recentCoops, recentHousing] = await Promise.all([
     prisma.business.count({ where: { type: { not: "COOP" } } }),
     prisma.business.count({ where: { type: "COOP" } }),
-    prisma.coop.count({ where: { isPublic: true } }),
+    prisma.coop.count(),
     prisma.housingProject.count(),
     prisma.business.findMany({
       where: { type: { not: "COOP" } },
@@ -92,7 +92,6 @@ async function getCommunityStats() {
       take: 4,
     }),
     prisma.coop.findMany({
-      where: { isPublic: true },
       select: {
         id: true, name: true, city: true, state: true,
         handbookEntries: { where: { fieldId: "FM-02" }, select: { value: true }, take: 1 },
