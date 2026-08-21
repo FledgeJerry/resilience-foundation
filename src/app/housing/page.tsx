@@ -646,9 +646,12 @@ export default function HousingPage() {
               : "Create an account to start a workbook — collect shareholders, track renter equity, manage your treasury, and generate documents."}
           </p>
         </div>
-        <Link href={session ? "/housing/projects" : "/register"} className="btn btn--primary btn--sm" style={{ flexShrink: 0 }}>
-          {session ? "My Projects →" : "Get started →"}
-        </Link>
+        <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0, flexWrap: "wrap" }}>
+          <Link href="/housing/directory" className="btn btn--secondary btn--sm">Browse projects →</Link>
+          <Link href={session ? "/housing/projects" : "/register"} className="btn btn--primary btn--sm">
+            {session ? "My Projects →" : "Get started →"}
+          </Link>
+        </div>
       </div>
 
       <ProgressBar step={stepIndex} />
