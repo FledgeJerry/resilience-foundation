@@ -1111,6 +1111,10 @@ select option { background: var(--color-surface-raised); color: var(--color-text
 }
 
 /* ── Print ────────────────────────────────────────────────────────────── */
+.print-only {
+  display: none;
+}
+
 @media print {
   .no-print,
   .site-nav {
@@ -1129,5 +1133,26 @@ select option { background: var(--color-surface-raised); color: var(--color-text
   .doc-print-content {
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  /* A letterhead line (title / entity name / date) that only appears
+     on the printed page, so a document is identifiable out of context. */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Flatten the app's dark theme (colored card backgrounds, colored
+     text) into plain black-on-white for anything meant to be printed
+     as a standalone document, regardless of on-screen inline styles. */
+  .print-doc,
+  .print-doc * {
+    background: #fff !important;
+    color: #111 !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+  }
+
+  body {
+    background: #fff !important;
   }
 }

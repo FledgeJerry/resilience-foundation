@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, use, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProposalsPanel from "@/components/ProposalsPanel";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1046,7 +1046,11 @@ function DocumentsTab({ project }: { project: Project }) {
             </div>
           </div>
           {content[doc.slug] && (
-            <div className="doc-print-content" style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+            <div className="doc-print-content print-doc" style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+              <div className="print-only" style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+                <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>{doc.title}</p>
+                <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{project.name} · Generated {printDate()}</p>
+              </div>
               <pre style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>{content[doc.slug]}</pre>
             </div>
           )}
@@ -1092,7 +1096,11 @@ function DocumentsTab({ project }: { project: Project }) {
                 </div>
               </div>
               {leaseContent[renter.id] && (
-                <div className="doc-print-content" style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+                <div className="doc-print-content print-doc" style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+                  <div className="print-only" style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+                    <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Lease — {renter.name}</p>
+                    <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{project.name} · Generated {printDate()}</p>
+                  </div>
                   <pre style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>{leaseContent[renter.id]}</pre>
                 </div>
               )}
@@ -1144,15 +1152,15 @@ export default function ProjectWorkbook({ params }: { params: Promise<{ id: stri
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
       {/* Header */}
       <div>
-        <Link href="/housing/projects" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>&larr; My Projects</Link>
+        <Link href="/housing/projects" className="no-print" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>&larr; My Projects</Link>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
           <h1 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)" }}>{project.name}</h1>
-          <span className="badge badge--muted">{project.status.charAt(0) + project.status.slice(1).toLowerCase()}</span>
+          <span className="badge badge--muted no-print">{project.status.charAt(0) + project.status.slice(1).toLowerCase()}</span>
         </div>
-        {project.address && <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{project.address}</p>}
+        {project.address && <p className="no-print" style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{project.address}</p>}
 
         {/* Quick stats bar */}
-        <div style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
+        <div className="no-print" style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
           {totalRaise > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Raise: <strong style={{ color: "var(--color-limestone)" }}>${totalRaise.toLocaleString()}</strong></span>}
           {issuePrice > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Issue price: <strong style={{ color: "var(--color-dome-gold)" }}>${issuePrice.toFixed(2)}</strong></span>}
           {publicShares > 0 && <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Public shares: <strong style={{ color: "var(--color-limestone)" }}>{publicShares.toLocaleString()}</strong></span>}

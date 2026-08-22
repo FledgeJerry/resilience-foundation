@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type Summary = {
@@ -112,7 +112,7 @@ function ExecSummaryContent() {
       </div>
 
       {result && (
-        <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>
+        <p className="no-print" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>
           Built from {result.fields} of {result.total} fields completed in your handbook.
           {result.fields < result.total && ` Fill in more fields to strengthen this document.`}
         </p>
@@ -133,7 +133,10 @@ function ExecSummaryContent() {
       )}
 
       {s && !generating && (
-        <div className="card" style={{ padding: "2rem 2.5rem" }}>
+        <div className="card print-doc" style={{ padding: "2rem 2.5rem" }}>
+          <div className="print-only" style={{ marginBottom: "0.75rem" }}>
+            <p style={{ fontSize: "0.85rem", margin: 0 }}>Executive Summary · Generated {printDate()}</p>
+          </div>
 
           {/* Header */}
           <div style={{ marginBottom: "2rem", borderBottom: "2px solid var(--color-dome-gold)", paddingBottom: "1.5rem" }}>

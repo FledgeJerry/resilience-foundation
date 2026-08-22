@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type DocConfig = {
@@ -368,7 +368,7 @@ export default function DocumentsTab({ businessId, businessName }: Props) {
           return (
             <div key={doc.id} className={`doc-card print-card${isExpanded ? " doc-card--expanded" : ""}${printTarget === doc.id ? " print-card--target" : ""}`}>
               <div className="doc-card__header" onClick={() => state.status === "done" && setExpanded(isExpanded ? null : doc.id)}>
-                <div className="doc-card__info">
+                <div className="doc-card__info no-print">
                   <h3 className="doc-card__title">{doc.title}</h3>
                   <p className="doc-card__desc">{doc.description}</p>
                   {state.status === "done" && state.filledCount !== undefined && (
@@ -413,7 +413,11 @@ export default function DocumentsTab({ businessId, businessName }: Props) {
               </div>
 
               {state.status === "done" && isExpanded && state.doc && (
-                <div className="doc-card__content">
+                <div className="doc-card__content print-doc">
+                  <div className="print-only" style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+                    <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>{doc.title}</p>
+                    <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{businessName} · Generated {printDate()}</p>
+                  </div>
                   {doc.render(state.doc)}
                 </div>
               )}

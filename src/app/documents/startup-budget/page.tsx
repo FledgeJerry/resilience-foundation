@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type CostItem = { category: string; item: string; amount: string; note: string };
@@ -64,13 +64,17 @@ function BudgetContent() {
           {b && <button onClick={() => window.print()} className="btn btn--primary btn--sm">Print / Save PDF</button>}
         </div>
       </div>
-      {result && <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>Built from {result.fields} of {result.total} budget fields completed in your handbook.{result.fields < result.total && " Fill in more fields for a more complete budget."}</p>}
+      {result && <p className="no-print" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>Built from {result.fields} of {result.total} budget fields completed in your handbook.{result.fields < result.total && " Fill in more fields for a more complete budget."}</p>}
       {error && <div className="alert alert--error" style={{ marginBottom: "1rem" }}>{error}</div>}
       {generating && <div className="card" style={{ padding: "3rem", textAlign: "center" }}><p style={{ color: "var(--color-text-muted)" }}>Building your startup budget…</p></div>}
       {!coopId && <div className="alert" style={{ marginTop: "1rem" }}>No co-op selected. <a href="/documents">Go back and select a co-op.</a></div>}
 
       {b && !generating && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div className="print-doc" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div className="print-only" style={{ paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+            <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Startup Budget</p>
+            <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{result?.coopName} · Generated {printDate()}</p>
+          </div>
 
           {/* What we already have */}
           {b.inHandNote && (

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, type CSSProperties } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type CanvasData = {
@@ -147,7 +147,7 @@ function CanvasContent() {
       </div>
 
       {result && (
-        <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>
+        <p className="no-print" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>
           Built from {result.fields} of {result.total} canvas fields completed in your handbook.
           {result.fields < result.total && ` Fill in more fields to strengthen this canvas.`}
         </p>
@@ -168,18 +168,23 @@ function CanvasContent() {
       )}
 
       {c && !generating && (
-        <div style={{
-          display: "grid",
-          gridTemplateAreas: `
-            "partners activities value community segments"
-            "partners resources  value channels   segments"
-            "cost     cost       cost  revenue    revenue"
-          `,
-          gridTemplateColumns: "1fr 1fr 1.4fr 1fr 1fr",
-          gridTemplateRows: "1fr 1fr auto",
-          gap: "6px",
-          minHeight: "520px",
-        }}>
+        <div className="print-doc">
+          <div className="print-only" style={{ marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+            <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Business Model Canvas</p>
+            <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{result?.coopName} · Generated {printDate()}</p>
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateAreas: `
+              "partners activities value community segments"
+              "partners resources  value channels   segments"
+              "cost     cost       cost  revenue    revenue"
+            `,
+            gridTemplateColumns: "1fr 1fr 1.4fr 1fr 1fr",
+            gridTemplateRows: "1fr 1fr auto",
+            gap: "6px",
+            minHeight: "520px",
+          }}>
           <CanvasBlock label="Key Partners"    items={c.keyPartners}       color={BLOCK_COLORS.partners}  style={{ gridArea: "partners" }} />
           <CanvasBlock label="Key Activities"  items={c.keyActivities}     color={BLOCK_COLORS.activities} style={{ gridArea: "activities" }} />
           <CanvasBlock label="Value Proposition" items={c.valueProposition} color={BLOCK_COLORS.value}     style={{ gridArea: "value" }} />
@@ -189,6 +194,7 @@ function CanvasContent() {
           <CanvasBlock label="Channels"        items={c.channels}          color={BLOCK_COLORS.channels}  style={{ gridArea: "channels" }} />
           <CanvasBlock label="Cost Structure"  items={c.costStructure}     color={BLOCK_COLORS.cost}      style={{ gridArea: "cost" }} />
           <CanvasBlock label="Revenue + Surplus Distribution" items={c.revenueAndSurplus} color={BLOCK_COLORS.revenue} style={{ gridArea: "revenue" }} />
+          </div>
         </div>
       )}
 

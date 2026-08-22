@@ -747,9 +747,9 @@ export default function BusinessWorkbookPage({ params }: { params: Promise<{ id:
         {/* Header */}
         <div className="workbook-header">
           <div>
-            <Link href="/journey/businesses" className="back-link">← My Businesses</Link>
+            <Link href="/journey/businesses" className="back-link no-print">← My Businesses</Link>
             <h1 className="workbook-title">{biz.name}</h1>
-            <div className="workbook-meta">
+            <div className="workbook-meta no-print">
               <span className={`type-badge type-badge--${biz.type.toLowerCase()}`}>
                 {biz.type === "UNDECIDED" ? "Path undecided" : biz.type === "COOP" ? "Worker Co-op" : "Traditional"}
               </span>
@@ -760,10 +760,12 @@ export default function BusinessWorkbookPage({ params }: { params: Promise<{ id:
         </div>
 
         {/* Stage Tracker */}
-        <StageTracker currentStage={biz.stage} bizType={biz.type} onStageChange={changeStage} />
+        <div className="no-print">
+          <StageTracker currentStage={biz.stage} bizType={biz.type} onStageChange={changeStage} />
+        </div>
 
         {/* Tabs */}
-        <div className="workbook-tabs">
+        <div className="workbook-tabs no-print">
           {availableTabs.map((t) => (
             <button
               key={t.id}

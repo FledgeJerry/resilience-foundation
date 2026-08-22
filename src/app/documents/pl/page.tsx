@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type YearRow = {
@@ -61,13 +61,17 @@ function PLContent() {
           {p && <button onClick={() => window.print()} className="btn btn--primary btn--sm">Print / Save PDF</button>}
         </div>
       </div>
-      {result && <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>Built from {result.fields} of {result.total} financial fields completed in your handbook.{result.fields < result.total && " Fill in more fields for a more accurate projection."}</p>}
+      {result && <p className="no-print" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>Built from {result.fields} of {result.total} financial fields completed in your handbook.{result.fields < result.total && " Fill in more fields for a more accurate projection."}</p>}
       {error && <div className="alert alert--error" style={{ marginBottom: "1rem" }}>{error}</div>}
       {generating && <div className="card" style={{ padding: "3rem", textAlign: "center" }}><p style={{ color: "var(--color-text-muted)" }}>Building your P&L…</p></div>}
       {!coopId && <div className="alert" style={{ marginTop: "1rem" }}>No co-op selected. <a href="/documents">Go back and select a co-op.</a></div>}
 
       {p && !generating && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div className="print-doc" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div className="print-only" style={{ paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+            <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Profit & Loss Statement</p>
+            <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{result?.coopName} · Generated {printDate()}</p>
+          </div>
           <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
             <div style={{ background: "rgba(74,155,142,0.08)", border: "1px solid rgba(74,155,142,0.3)", borderRadius: "6px", padding: "0.85rem 1.25rem" }}>
               <p style={{ margin: "0 0 0.2rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-teal-accent)" }}>Break-Even</p>

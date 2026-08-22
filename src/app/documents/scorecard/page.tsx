@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { downloadMarkdown } from "@/lib/download";
+import { downloadMarkdown, printDate } from "@/lib/download";
 import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type Kpi = { label: string; target: string; measure: string; trigger: string };
@@ -122,7 +122,7 @@ function ScorecardContent() {
       </div>
 
       {result && (
-        <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
+        <p className="no-print" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
           Built from {result.fields} of {result.total} scorecard fields completed in your handbook.
           {result.fields < result.total && ` Fill in more fields for sharper targets.`}
         </p>
@@ -141,7 +141,11 @@ function ScorecardContent() {
       )}
 
       {s && !generating && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div className="print-doc" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div className="print-only" style={{ paddingBottom: "0.75rem", borderBottom: "1px solid #ccc" }}>
+            <p style={{ fontWeight: 700, fontSize: "1rem", margin: 0 }}>Four Bottom Lines Scorecard</p>
+            <p style={{ fontSize: "0.85rem", margin: "0.2rem 0 0" }}>{result?.coopName} · Generated {printDate()}</p>
+          </div>
 
           {/* Vision + cadence banner */}
           <div style={{
