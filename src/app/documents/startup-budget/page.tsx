@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { downloadMarkdown } from "@/lib/download";
+import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type CostItem = { category: string; item: string; amount: string; note: string };
 type FundingSource = { source: string; amount: string };
@@ -58,6 +60,7 @@ function BudgetContent() {
         </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button onClick={generate} disabled={generating || !coopId} className="btn btn--secondary btn--sm">{generating ? "Generating…" : "Regenerate"}</button>
+          {b && <button onClick={() => downloadMarkdown(`${result?.coopName} — Startup Budget.md`, jsonToMarkdown(b, "Startup Budget"))} className="btn btn--secondary btn--sm">Download .md</button>}
           {b && <button onClick={() => window.print()} className="btn btn--primary btn--sm">Print / Save PDF</button>}
         </div>
       </div>

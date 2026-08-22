@@ -4,21 +4,9 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DOCUMENTS } from "@/lib/document-list";
 
 type Coop = { id: string; name: string; role: string };
-
-const DOCUMENTS = [
-  { slug: "pitch", title: "Community Pitch", desc: "One-page shareable invite for community events and outreach.", fields: ["FM-01", "FM-02", "P1-07", "P3-04", "P2-08", "P6-01", "P6-02"], available: true },
-  { slug: "executive-summary", title: "Executive Summary", desc: "2-page overview for grant applications and partnership conversations.", fields: [], available: true },
-  { slug: "canvas", title: "Business Model Canvas", desc: "One-page visual map of your entire cooperative business model.", fields: [], available: true },
-  { slug: "governance", title: "Governance Summary", desc: "Plain-language description of how your co-op is governed.", fields: [], available: true },
-  { slug: "scorecard", title: "Scorecard", desc: "Four bottom lines with your specific targets and quarterly tracking.", fields: [], available: true },
-  { slug: "pl", title: "Profit & Loss Statement", desc: "Projected P&L for Years 1, 2, and 3.", fields: [], available: true },
-  { slug: "startup-budget", title: "Startup Budget", desc: "Itemized list of everything you need before you open the doors.", fields: [], available: true },
-  { slug: "cash-flow", title: "Cash Flow Statement", desc: "Month-by-month Year 1 money in, money out, and running balance.", fields: [], available: true },
-  { slug: "equity-schedule", title: "Member Equity Schedule", desc: "How each worker-owner's capital account grows over 3 years.", fields: [], available: true },
-  { slug: "ecosystem-map", title: "Ecosystem Map", desc: "Visual map of your co-op's place in the cooperative ecosystem.", fields: [], available: true },
-];
 
 export default function DocumentsPage() {
   const { status } = useSession();
@@ -83,29 +71,19 @@ export default function DocumentsPage() {
           <div
             key={doc.slug}
             className="card"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "1rem",
-              opacity: doc.available ? 1 : 0.5,
-            }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}
           >
             <div>
               <p style={{ fontWeight: 600, margin: "0 0 0.2rem", color: "var(--color-limestone)" }}>{doc.title}</p>
               <p style={{ fontSize: "0.85rem", margin: 0, color: "var(--color-text-secondary)" }}>{doc.desc}</p>
             </div>
-            {doc.available ? (
-              <Link
-                href={`/documents/${doc.slug}${coopId ? `?coopId=${coopId}` : ""}`}
-                className="btn btn--primary btn--sm"
-                style={{ flexShrink: 0 }}
-              >
-                Generate
-              </Link>
-            ) : (
-              <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", flexShrink: 0 }}>Coming soon</span>
-            )}
+            <Link
+              href={`/documents/${doc.slug}${coopId ? `?coopId=${coopId}` : ""}`}
+              className="btn btn--primary btn--sm"
+              style={{ flexShrink: 0 }}
+            >
+              Generate
+            </Link>
           </div>
         ))}
       </div>

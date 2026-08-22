@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { downloadMarkdown } from "@/lib/download";
+import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type IcaPrinciple = { number: number; name: string; text: string };
 
@@ -97,6 +99,11 @@ function GovernanceContent() {
           <button onClick={generate} disabled={generating || !coopId} className="btn btn--secondary btn--sm">
             {generating ? "Generating…" : "Regenerate"}
           </button>
+          {g && (
+            <button onClick={() => downloadMarkdown(`${result?.coopName} — Governance Summary.md`, jsonToMarkdown(g, "Governance Summary"))} className="btn btn--secondary btn--sm">
+              Download .md
+            </button>
+          )}
           {g && (
             <button onClick={() => window.print()} className="btn btn--primary btn--sm">
               Print / Save PDF

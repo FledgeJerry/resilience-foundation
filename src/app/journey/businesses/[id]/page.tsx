@@ -788,7 +788,7 @@ export default function BusinessWorkbookPage({ params }: { params: Promise<{ id:
           {activeTab === "deals" && <DealsTab biz={biz} onSave={save} />}
           {activeTab === "financials" && <FinancialsTab biz={biz} onSave={save} />}
           {activeTab === "plan" && <PlanTab businessId={biz.id} />}
-          {activeTab === "documents" && <DocumentsTab businessId={biz.id} />}
+          {activeTab === "documents" && <DocumentsTab businessId={biz.id} businessName={biz.name} />}
         </div>
       </div>
     </main>

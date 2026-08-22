@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { downloadMarkdown } from "@/lib/download";
 
 type Result = { content: string; fields: number; total: number };
 
@@ -57,12 +58,26 @@ function PitchContent() {
             {generating ? "Generating…" : "Regenerate"}
           </button>
           {result && (
-            <button
-              onClick={() => navigator.clipboard.writeText(result.content)}
-              className="btn btn--primary btn--sm"
-            >
-              Copy
-            </button>
+            <>
+              <button
+                onClick={() => navigator.clipboard.writeText(result.content)}
+                className="btn btn--secondary btn--sm"
+              >
+                Copy
+              </button>
+              <button
+                onClick={() => downloadMarkdown("Community Pitch.md", result.content)}
+                className="btn btn--secondary btn--sm"
+              >
+                Download .md
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="btn btn--primary btn--sm"
+              >
+                Print / Save PDF
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -93,6 +108,14 @@ function PitchContent() {
           No co-op selected. <a href="/documents">Go back and select a co-op.</a>
         </div>
       )}
+
+      <style>{`
+        @media print {
+          body { background: white !important; color: black !important; }
+          .site-nav, .btn, .eyebrow, h1, p { color: black !important; }
+          button { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }

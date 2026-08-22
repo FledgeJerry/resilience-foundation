@@ -1109,3 +1109,25 @@ select option { background: var(--color-surface-raised); color: var(--color-text
   margin-top: 0.5rem;
   text-align: right;
 }
+
+/* ── Print ────────────────────────────────────────────────────────────── */
+@media print {
+  .no-print,
+  .site-nav {
+    display: none !important;
+  }
+
+  /* On pages that can show multiple generated documents at once
+     (journey, housing), only print the one the user chose. */
+  .print-card {
+    display: none !important;
+  }
+  .print-card--target {
+    display: flex !important;
+  }
+
+  .doc-print-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

@@ -8,6 +8,7 @@ import { HANDBOOK } from "@/lib/handbook-content";
 import type { HandbookField } from "@/lib/handbook-content";
 import ProposalsPanel from "@/components/ProposalsPanel";
 import RegionPulsePanel from "@/components/RegionPulsePanel";
+import DocumentsPanel from "@/components/DocumentsPanel";
 
 type Coop = { id: string; name: string; role: string; isPublic?: boolean; website?: string; contactEmail?: string; phone?: string; street?: string; city?: string; state?: string; zip?: string };
 type Member = { id: string; role: string; user: { id: string; name: string | null; email: string } };
@@ -575,6 +576,28 @@ function HandbookPageInner() {
               </span>
             </button>
           )}
+          {/* Documents — special section */}
+          {coopId && (
+            <button
+              onClick={() => setActiveSection("documents")}
+              style={{
+                background: activeSection === "documents" ? "var(--color-surface-raised)" : "transparent",
+                border: activeSection === "documents" ? "1px solid var(--color-border-strong)" : "1px solid transparent",
+                borderRadius: "6px",
+                padding: "0.5rem 0.75rem",
+                textAlign: "left",
+                cursor: "pointer",
+                width: "100%",
+              }}
+            >
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: activeSection === "documents" ? "var(--color-dome-gold)" : "var(--color-text-muted)", display: "block" }}>
+                Output
+              </span>
+              <span style={{ fontSize: "0.8rem", color: activeSection === "documents" ? "var(--color-limestone)" : "var(--color-text-secondary)", display: "block", lineHeight: 1.3 }}>
+                Documents
+              </span>
+            </button>
+          )}
         </nav>
       </aside>
 
@@ -600,6 +623,8 @@ function HandbookPageInner() {
               }}
             />
           </div>
+        ) : activeSection === "documents" && coopId ? (
+          <DocumentsPanel coopId={coopId} />
         ) : (
         <>
         <div style={{ marginBottom: "2rem" }}>

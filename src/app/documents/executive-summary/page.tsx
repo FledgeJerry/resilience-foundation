@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { downloadMarkdown } from "@/lib/download";
+import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type Summary = {
   coopName: string;
@@ -96,6 +98,11 @@ function ExecSummaryContent() {
           >
             {generating ? "Generating…" : "Regenerate"}
           </button>
+          {s && (
+            <button onClick={() => downloadMarkdown(`${result?.coopName} — Executive Summary.md`, jsonToMarkdown(s, "Executive Summary"))} className="btn btn--secondary btn--sm">
+              Download .md
+            </button>
+          )}
           {s && (
             <button onClick={() => window.print()} className="btn btn--primary btn--sm">
               Print / Save PDF

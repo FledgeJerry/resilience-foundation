@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { downloadMarkdown } from "@/lib/download";
+import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type DocConfig = {
   id: string;
@@ -320,13 +322,24 @@ const DOCS: DocConfig[] = [
 
 type DocState = { status: "idle" | "loading" | "done" | "error"; doc?: Record<string, unknown>; filledCount?: number; total?: number };
 
-type Props = { businessId: string };
+type Props = { businessId: string; businessName: string };
 
-export default function DocumentsTab({ businessId }: Props) {
+export default function DocumentsTab({ businessId, businessName }: Props) {
   const [states, setStates] = useState<Record<string, DocState>>(
     Object.fromEntries(DOCS.map((d) => [d.id, { status: "idle" }]))
   );
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [printTarget, setPrintTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (printTarget) window.print();
+  }, [printTarget]);
+
+  useEffect(() => {
+    function clear() { setPrintTarget(null); }
+    window.addEventListener("afterprint", clear);
+    return () => window.removeEventListener("afterprint", clear);
+  }, []);
 
   async function generate(docId: string, endpoint: string) {
     setStates((s) => ({ ...s, [docId]: { status: "loading" } }));
@@ -353,7 +366,7 @@ export default function DocumentsTab({ businessId }: Props) {
           const state = states[doc.id];
           const isExpanded = expanded === doc.id;
           return (
-            <div key={doc.id} className={`doc-card${isExpanded ? " doc-card--expanded" : ""}`}>
+            <div key={doc.id} className={`doc-card print-card${isExpanded ? " doc-card--expanded" : ""}${printTarget === doc.id ? " print-card--target" : ""}`}>
               <div className="doc-card__header" onClick={() => state.status === "done" && setExpanded(isExpanded ? null : doc.id)}>
                 <div className="doc-card__info">
                   <h3 className="doc-card__title">{doc.title}</h3>
@@ -362,7 +375,7 @@ export default function DocumentsTab({ businessId }: Props) {
                     <p className="doc-card__fill-note">{state.filledCount}/{state.total} plan fields used</p>
                   )}
                 </div>
-                <div className="doc-card__actions">
+                <div className="doc-card__actions no-print">
                   {state.status === "idle" && (
                     <button className="btn btn--primary btn--sm" onClick={(e) => { e.stopPropagation(); generate(doc.id, doc.endpoint); }}>
                       Generate
@@ -373,6 +386,18 @@ export default function DocumentsTab({ businessId }: Props) {
                   )}
                   {state.status === "done" && (
                     <>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={(e) => { e.stopPropagation(); downloadMarkdown(`${businessName} — ${doc.title}.md`, jsonToMarkdown(state.doc!, doc.title)); }}
+                      >
+                        Download .md
+                      </button>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={(e) => { e.stopPropagation(); if (!isExpanded) setExpanded(doc.id); setPrintTarget(doc.id); }}
+                      >
+                        Print / Save PDF
+                      </button>
                       <button className="btn btn--ghost btn--sm" onClick={(e) => { e.stopPropagation(); generate(doc.id, doc.endpoint); }}>
                         Regenerate
                       </button>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, use, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProposalsPanel from "@/components/ProposalsPanel";
+import { downloadMarkdown } from "@/lib/download";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -970,6 +971,17 @@ function DocumentsTab({ project }: { project: Project }) {
   const [content, setContent] = useState<Record<string, string>>({});
   const [generatingLease, setGeneratingLease] = useState<string | null>(null);
   const [leaseContent, setLeaseContent] = useState<Record<string, string>>({});
+  const [printTarget, setPrintTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (printTarget) window.print();
+  }, [printTarget]);
+
+  useEffect(() => {
+    function clear() { setPrintTarget(null); }
+    window.addEventListener("afterprint", clear);
+    return () => window.removeEventListener("afterprint", clear);
+  }, []);
 
   async function generate(slug: string) {
     setGenerating(slug);
@@ -992,19 +1004,11 @@ function DocumentsTab({ project }: { project: Project }) {
   }
 
   function download(slug: string, title: string) {
-    const blob = new Blob([content[slug]], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${project.name} — ${title}.md`; a.click();
-    URL.revokeObjectURL(url);
+    downloadMarkdown(`${project.name} — ${title}.md`, content[slug]);
   }
 
   function downloadLease(shareholderId: string, name: string) {
-    const blob = new Blob([leaseContent[shareholderId]], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${project.name} — Lease — ${name}.md`; a.click();
-    URL.revokeObjectURL(url);
+    downloadMarkdown(`${project.name} — Lease — ${name}.md`, leaseContent[shareholderId]);
   }
 
   const renters = project.shareholders.filter(s => s.isRenter);
@@ -1015,15 +1019,22 @@ function DocumentsTab({ project }: { project: Project }) {
         Each document is generated from your project data using AI and formatted in plain language. Fill in the Property, Offering, Shareholders, and Governance tabs first for the best output.
       </p>
       {HOUSING_DOCS.map(doc => (
-        <div key={doc.slug} className="card--raised" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
+        <div
+          key={doc.slug}
+          className={`card--raised print-card${printTarget === `doc:${doc.slug}` ? " print-card--target" : ""}`}
+          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+        >
+          <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
             <div>
               <p style={{ fontWeight: 700, color: "var(--color-limestone)", marginBottom: "0.25rem" }}>{doc.title}</p>
               <p style={{ fontSize: "0.85rem" }}>{doc.desc}</p>
             </div>
             <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
               {content[doc.slug] && (
-                <button className="btn btn--ghost btn--sm" onClick={() => download(doc.slug, doc.title)}>Download .md</button>
+                <>
+                  <button className="btn btn--ghost btn--sm" onClick={() => download(doc.slug, doc.title)}>Download .md</button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setPrintTarget(`doc:${doc.slug}`)}>Print / Save PDF</button>
+                </>
               )}
               <button
                 className="btn btn--primary btn--sm"
@@ -1035,7 +1046,7 @@ function DocumentsTab({ project }: { project: Project }) {
             </div>
           </div>
           {content[doc.slug] && (
-            <div style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+            <div className="doc-print-content" style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
               <pre style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>{content[doc.slug]}</pre>
             </div>
           )}
@@ -1050,8 +1061,12 @@ function DocumentsTab({ project }: { project: Project }) {
             <p style={{ fontSize: "0.85rem", maxWidth: "560px" }}>Generated per renter from their lease terms, the property details, and the cooperative governance structure.</p>
           </div>
           {renters.map(renter => (
-            <div key={renter.id} className="card--raised" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div
+              key={renter.id}
+              className={`card--raised print-card${printTarget === `lease:${renter.id}` ? " print-card--target" : ""}`}
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            >
+              <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
                 <div>
                   <p style={{ fontWeight: 700, color: "var(--color-limestone)", marginBottom: "0.25rem" }}>Lease — {renter.name}</p>
                   <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
@@ -1062,7 +1077,10 @@ function DocumentsTab({ project }: { project: Project }) {
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                   {leaseContent[renter.id] && (
-                    <button className="btn btn--ghost btn--sm" onClick={() => downloadLease(renter.id, renter.name)}>Download .md</button>
+                    <>
+                      <button className="btn btn--ghost btn--sm" onClick={() => downloadLease(renter.id, renter.name)}>Download .md</button>
+                      <button className="btn btn--ghost btn--sm" onClick={() => setPrintTarget(`lease:${renter.id}`)}>Print / Save PDF</button>
+                    </>
                   )}
                   <button
                     className="btn btn--primary btn--sm"
@@ -1074,7 +1092,7 @@ function DocumentsTab({ project }: { project: Project }) {
                 </div>
               </div>
               {leaseContent[renter.id] && (
-                <div style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
+                <div className="doc-print-content" style={{ background: "var(--color-surface)", borderRadius: "8px", padding: "1.25rem", border: "1px solid var(--color-border)", maxHeight: "400px", overflowY: "auto" }}>
                   <pre style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>{leaseContent[renter.id]}</pre>
                 </div>
               )}
@@ -1143,7 +1161,7 @@ export default function ProjectWorkbook({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Tab nav */}
-      <div className="tabs">
+      <div className="tabs no-print">
         {TABS.map(tab => (
           <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
             {tab}

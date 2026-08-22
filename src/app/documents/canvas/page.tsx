@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, type CSSProperties } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { downloadMarkdown } from "@/lib/download";
+import { jsonToMarkdown } from "@/lib/doc-markdown";
 
 type CanvasData = {
   keyPartners: string[];
@@ -126,12 +128,20 @@ function CanvasContent() {
             {generating ? "Generating…" : "Regenerate"}
           </button>
           {result && (
-            <button
-              onClick={() => window.print()}
-              className="btn btn--primary btn--sm"
-            >
-              Print / Save PDF
-            </button>
+            <>
+              <button
+                onClick={() => downloadMarkdown(`${result.coopName} — Business Model Canvas.md`, jsonToMarkdown(result.canvas, "Business Model Canvas"))}
+                className="btn btn--secondary btn--sm"
+              >
+                Download .md
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="btn btn--primary btn--sm"
+              >
+                Print / Save PDF
+              </button>
+            </>
           )}
         </div>
       </div>
