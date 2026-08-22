@@ -164,6 +164,7 @@ export default async function JourneyPage() {
                           <li>Bylaws generator</li>
                           <li>ICA principles guide</li>
                         </ul>
+                        <Link href="/co-op" className="journey-fork__path-link">Learn about the co-op path →</Link>
                       </div>
                     </div>
                     <div className="journey-fork__note">

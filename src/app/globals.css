@@ -554,6 +554,7 @@ select option { background: var(--color-surface-raised); color: var(--color-text
 .journey-fork__path li { font-size: 0.78rem; color: var(--color-text-muted); padding-left: 0.75rem; position: relative; }
 .journey-fork__path li::before { content: "›"; position: absolute; left: 0; color: var(--color-text-muted); }
 .journey-fork__note { text-align: center; font-size: 0.85rem; color: var(--color-text-muted); padding: 0.75rem 1rem; }
+.journey-fork__path-link { display: inline-block; font-size: 0.82rem; font-weight: 600; color: var(--color-teal-accent); margin-top: 0.25rem; }
 
 .journey-cta { padding: 3rem 0; text-align: center; border-top: 1px solid var(--color-border); }
 .journey-cta h2 { margin-bottom: 0.75rem; }
