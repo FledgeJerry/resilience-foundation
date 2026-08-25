@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 type Status = "idle" | "open" | "sending" | "sent" | "error";
 
@@ -9,6 +10,7 @@ export default function FeedbackWidget() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const pathname = usePathname();
 
   function open() { setStatus("open"); }
   function close() {
@@ -44,6 +46,11 @@ export default function FeedbackWidget() {
   }
 
   const panelOpen = status === "open" || status === "sending" || status === "sent" || status === "error";
+
+  // Fixed-position widgets have nowhere to go on admin pages — they end up
+  // parked on top of form Save buttons. Admin is Jerry's own tool, not a
+  // visitor-facing surface, so there's no reason to show it there.
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <>
