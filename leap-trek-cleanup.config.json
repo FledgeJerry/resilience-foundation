@@ -1,0 +1,43 @@
+{
+  "duplicateBusinessId": "cmph2ll0k000u2byqfk415sik",
+  "duplicateBusinessExpectedName": "Innovative Interactions LLC",
+  "survivorBusinessId": "cmph2l7090044znyqi69ku2es",
+  "survivorExpectedFundingRowsAfter": 5,
+  "businessUpdates": [
+    {
+      "businessId": "cmph2l47p0001znyqn4uc0n37",
+      "field": "owner_first_name",
+      "oldValue": "Canrym",
+      "newValue": "Camryn",
+      "ownerEmailCheck": "camrynjackson@pneuoma.com"
+    },
+    {
+      "businessId": "cmph2l7090044znyqi69ku2es",
+      "field": "company_legal_name",
+      "oldValue": "Innovative Interactions (SmartPype)",
+      "newValue": "SmartPype"
+    }
+  ],
+  "fundingMoves": [
+    { "fundingId": "cmph2ll1g000w2byqbtmi40vo", "fromBusinessId": "cmph2ll0k000u2byqfk415sik", "toBusinessId": "cmph2l7090044znyqi69ku2es" },
+    { "fundingId": "cmph2ll1s000x2byqy7xbisq8", "fromBusinessId": "cmph2ll0k000u2byqfk415sik", "toBusinessId": "cmph2l7090044znyqi69ku2es" }
+  ],
+  "expected": {
+    "pre2026RowsUnchanged": { "rows": 792, "hours": 1442.25 },
+    "old2026Entries": { "rows": 31, "hours": 55.00 },
+    "new2026Entries": {
+      "rows": 292,
+      "hours": 505.00,
+      "byQuarter": { "2026-Q1": { "rows": 100, "hours": 157.00 }, "2026-Q2": { "rows": 124, "hours": 234.50 }, "2026-Q3": { "rows": 68, "hours": 113.50 } },
+      "byCategory": {
+        "One on One Consulting": 200,
+        "Admin and Reporting": 38,
+        "99 Problems but a Pitch Ain't One": 19,
+        "Platform development (resilience.foundation)": 18,
+        "EJ Meetup": 17
+      }
+    },
+    "totalAfter": { "rows": 1084, "hours": 1947.25 },
+    "businessCountDelta": -1
+  }
+}

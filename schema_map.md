@@ -214,3 +214,25 @@ Resolving the open questions above:
 10. **`entity_type` normalization**: export `Business.formationType` as raw text rather than force-mapping to the spec's controlled vocabulary; mismatches get caught in `data_gaps.csv` review rather than silently guessed at export time.
 
 With these resolved, Section 0 step 2 is done. Next: build the Priority 1 exports (`businesses_served.csv`, `funding_events.csv`, `mentorship_connections.csv`, `metrics_summary.csv`), test against local dev, then run against production per the established workflow.
+
+All 8 spec deliverables were built in `scripts/leap-trek-export.ts` and verified against local dev — see `leap-trek-export/run_log.md` (regenerated each run) for row counts and assumptions. Run against production 2026-09-21.
+
+---
+
+## Schema change: TrekTimeLog gains 6 nullable fields (2026-09-21)
+
+Per the approved cleanup in `claude_code_instructions.md`, migration
+`20260921000000_add_trek_time_log_leap_fields` adds:
+
+| Prisma field | Column | Type | Notes |
+|---|---|---|---|
+| `isReconstructed` | `isReconstructed` | `BOOLEAN` | Nullable. Existing rows left `NULL` — whether they were contemporaneous is unknown, not backfilled `false`. |
+| `reconstructedOn` | `reconstructedOn` | `TIMESTAMP(3)` | Nullable. |
+| `evidenceRef` | `evidenceRef` | `TEXT` | Nullable. |
+| `grantCharged` | `grantCharged` | `BOOLEAN` | Nullable. |
+| `grantChargedHours` | `grantChargedHours` | `DOUBLE PRECISION` | Nullable. Matches the existing schema's convention of using `Float` for all money/hours fields (`hours`, `amount`, `annualRevenue`) rather than introducing a new fixed-precision `Decimal` type this codebase has never used. |
+| `sourceOfRecord` | `sourceOfRecord` | `TEXT` | Nullable. |
+
+`category` remains free text (not an enum) — per the ticket, no schema change needed there; `"Platform development (resilience.foundation)"` is just a string value like any other.
+
+This closes three of the gaps flagged earlier in this document: `time_entries.csv` items 9 (`grant_charged`, `grant_charged_hours`, `source_of_record`) and the reconstruction-tracking fields (`is_reconstructed`, `reconstructed_on`, `evidence_ref`) are no longer structurally MISSING — they exist and are populated for the 292 rows inserted by the 2026-09-21 cleanup, though still `NULL` for every pre-existing row (by design, not backfilled).

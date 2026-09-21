@@ -44,3 +44,9 @@ next-env.d.ts
 
 # LEAP TREK reporting export — contains PII, never commit
 /leap-trek-export/
+
+# LEAP TREK cleanup archives + pg_dump backups — contains PII, never commit
+/archive/
+
+# Local input CSVs for the LEAP TREK cleanup (copied from ~/Downloads on the Pi) — contains PII
+/cleanup-input/

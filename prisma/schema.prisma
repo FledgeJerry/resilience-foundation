@@ -502,6 +502,16 @@ model TrekTimeLog {
   notes       String?
   businessId  String?
 
+  // LEAP TREK close-out fields (added 2026-09-21) — nullable, and existing
+  // rows are deliberately left null rather than backfilled with false:
+  // whether older entries were contemporaneous is unknown.
+  isReconstructed   Boolean?
+  reconstructedOn   DateTime?
+  evidenceRef       String?
+  grantCharged      Boolean?
+  grantChargedHours Float?
+  sourceOfRecord    String?
+
   business Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
