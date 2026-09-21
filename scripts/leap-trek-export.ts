@@ -1,9 +1,9 @@
-// LEAP TREK Close-Out data export — Priority 1 files only
-// (businesses_served.csv, funding_events.csv, mentorship_connections.csv,
-// metrics_summary.csv). See leap-trek-reporting-data-spec.md for the full
-// spec and schema_map.md for the field-by-field mapping + decisions this
-// script implements. Priority 2/3 files (time_entries, time_summary,
-// data_gaps, run_log) are a separate follow-up.
+// LEAP TREK Close-Out data export — all 8 spec deliverables:
+// businesses_served.csv, funding_events.csv, mentorship_connections.csv,
+// metrics_summary.csv, time_entries.csv, time_summary_by_quarter.csv,
+// data_gaps.csv, run_log.md. See leap-trek-reporting-data-spec.md for the
+// full spec and schema_map.md for the field-by-field mapping + decisions
+// this script implements.
 //
 // Decisions baked in here (see schema_map.md "Decisions" section for why):
 // - "Served" = every Business row in the database. No date filtering.
@@ -22,10 +22,11 @@
 //
 // Run: npx tsx scripts/leap-trek-export.ts
 import "dotenv/config";
-import { writeFileSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
 import { prisma } from "../src/lib/prisma";
 
 const OUT_DIR = "leap-trek-export";
+mkdirSync(OUT_DIR, { recursive: true });
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
